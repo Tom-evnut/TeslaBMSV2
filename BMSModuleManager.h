@@ -6,6 +6,7 @@ class BMSModuleManager
 {
 public:
     BMSModuleManager();
+    int seriescells();
     void balanceCells();
     void setupBoards();
     void findBoards();
@@ -48,6 +49,7 @@ private:
     float highestPackTemp;
     BMSModule modules[MAX_MODULE_ADDR + 1]; // store data for as many modules as we've configured for.
     int batteryID;
+    int spack;
     int numFoundModules;                    // The number of modules that seem to exist
     bool isFaulted;
     /*

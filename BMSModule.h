@@ -6,6 +6,7 @@ class BMSModule
     BMSModule();
     void readStatus();
     bool readModuleValues();
+    int getscells();
     float getCellVoltage(int cell);
     float getLowCellV();
     float getHighCellV();
@@ -50,5 +51,6 @@ class BMSModule
     int COVFaults;
     int CUVFaults;
     int sensor;
+    int scells;
     uint8_t moduleAddress;     //1 to 0x3E
 };
