@@ -51,6 +51,6 @@ class BMSModule
     int COVFaults;
     int CUVFaults;
     int sensor;
-    uint8_t moduleAddress;     //1 to 0x3E
     int scells;
+    uint8_t moduleAddress;     //1 to 0x3E
 };

@@ -39,51 +39,30 @@ void BMSModuleManager::balanceCells()
 
   for (int address = 1; address <= MAX_MODULE_ADDR; address++)
   {
-    if (modules[address].isExisting())
+    balance = 0;
+    for (int i = 0; i < 6; i++)
     {
-      balance = 0;
-      for (int i = 0; i < 6; i++)
+      if (getLowCellVolt() < modules[address].getCellVoltage(i))
       {
-        if (getLowCellVolt() < modules[address].getCellVoltage(i))
-        {
-          balance = balance | (1 << i);
-        }
+        balance = balance | (1 << i);
       }
+    }
 
-      if (balance != 0) //only send balance command when needed
-      {
-        payload[0] = address << 1;
-        payload[1] = REG_BAL_TIME;
-        payload[2] = 0x05; //5 second balance limit, if not triggered to balance it will stop after 5 seconds
-        BMSUtil::sendData(payload, 3, true);
-        delay(2);
-        BMSUtil::getReply(buff, 30);
+    if (balance != 0) //only send balance command when needed
+    {
+      payload[0] = address << 1;
+      payload[1] = REG_BAL_TIME;
+      payload[2] = 0x05; //5 second balance limit, if not triggered to balance it will stop after 5 seconds
+      BMSUtil::sendData(payload, 3, true);
+      delay(2);
+      BMSUtil::getReply(buff, 30);
 
-        payload[0] = address << 1;
-        payload[1] = REG_BAL_CTRL;
-        payload[2] = balance; //write balance state to register
-        BMSUtil::sendData(payload, 3, true);
-        delay(2);
-        BMSUtil::getReply(buff, 30);
-
-        if (Logger::isDebug()) //read registers back out to check if everthing is good
-        {
-          delay(50);
-          payload[0] = address << 1;
-          payload[1] = REG_BAL_TIME;
-          payload[2] = 1; //
-          BMSUtil::sendData(payload, 3, false);
-          delay(2);
-          BMSUtil::getReply(buff, 30);
-
-          payload[0] = address << 1;
-          payload[1] = REG_BAL_CTRL;
-          payload[2] = 1; //
-          BMSUtil::sendData(payload, 3, false);
-          delay(2);
-          BMSUtil::getReply(buff, 30);
-        }
-      }
+      payload[0] = address << 1;
+      payload[1] = REG_BAL_CTRL;
+      payload[2] = balance; //write balance state to register
+      BMSUtil::sendData(payload, 3, true);
+      delay(2);
+      BMSUtil::getReply(buff, 30);
     }
   }
 }
@@ -424,7 +403,7 @@ void BMSModuleManager::printPackSummary()
   Logger::console("");
   Logger::console("");
   Logger::console("");
-  Logger::console("Modules: %i    Voltage: %fV   Avg Cell Voltage: %fV     Avg Temp: %fC ", numFoundModules,
+  Logger::console("Modules: %i  Cells: %i  Voltage: %fV   Avg Cell Voltage: %fV     Avg Temp: %fC ", numFoundModules, seriescells(),
                   getPackVoltage(), getAvgCellVolt(), getAvgTemperature());
   Logger::console("");
   for (int y = 1; y < 63; y++)
@@ -538,9 +517,9 @@ void BMSModuleManager::printPackDetails()
   Logger::console("");
   Logger::console("");
   Logger::console("");
-  Logger::console("Modules: %i Cells: %i Strings: %i  Voltage: %fV   Avg Cell Voltage: %fV  Low Cell Voltage: %fV   High Cell Voltage: %fV   Avg Temp: %fC ", numFoundModules, seriescells(),
-                  Pstring, getPackVoltage(), getAvgCellVolt(), LowCellVolt, HighCellVolt, getAvgTemperature());
-  Logger::console("");
+    Logger::console("Modules: %i Cells: %i  Voltage: %fV   Avg Cell Voltage: %fV  Low Cell Voltage: %fV   High Cell Voltage: %fV   Avg Temp: %fC ", numFoundModules,seriescells(), 
+                    getPackVoltage(),getAvgCellVolt(),LowCellVolt, HighCellVolt, getAvgTemperature());
+    Logger::console("");
   for (int y = 1; y < 63; y++)
   {
     if (modules[y].isExisting())
@@ -574,3 +553,4 @@ void BMSModuleManager::printPackDetails()
     }
   }
 }
+
