@@ -128,8 +128,8 @@ int storagemode =0;
 
 //Debugging modes//////////////////
 int debug = 1;
-int inputcheck = 1; //read digital inputs
-int outputcheck = 1; //check outputs
+int inputcheck = 0; //read digital inputs
+int outputcheck = 0; //check outputs
 int candebug = 0; //view can frames
 int debugCur = 0;
 int menuload = 0;
@@ -140,8 +140,8 @@ ADC *adc = new ADC(); // adc object
 void loadSettings()
 {
   Logger::console("Resetting to factory defaults");
-  settings.version = 0;
-  settings.checksum = 0;
+  settings.version = 20;
+  settings.checksum = 2;
   settings.canSpeed = 500000;
   settings.batteryID = 0x01; //in the future should be 0xFF to force it to ask for an address
   settings.OverVSetpoint = 4.2f;
@@ -198,6 +198,7 @@ void setup()
 
   SERIALCONSOLE.begin(115200);
   SERIALCONSOLE.println("Starting up!");
+  SERIALCONSOLE.println("SimpBMS V2 Tesla");
   SERIALBMS.begin(612500); //Tesla serial bus
   //VE.begin(19200); //Victron VE direct bus
 #if defined (__arm__) && defined (__SAM3X8E__)
