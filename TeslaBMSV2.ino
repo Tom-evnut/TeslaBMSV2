@@ -1056,7 +1056,11 @@ void menu()
         calcur();
         break;
 
-
+      case '1':
+        menuload = 1;
+        invertcur = !invertcur;
+        incomingByte = 'c';
+        break;
 
       case 113: //q for quite menu
 
@@ -1304,6 +1308,8 @@ void menu()
         SERIALCONSOLE.println("Current Sensor Calibration Menu");
         SERIALCONSOLE.println("c - To calibrate sensor offset");
         SERIALCONSOLE.println("s - To switch between Current Sensors");
+        SERIALCONSOLE.print("1 - invert current :");
+        SERIALCONSOLE.println(invertcur);
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 2;
         break;
