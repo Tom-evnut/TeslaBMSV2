@@ -130,7 +130,7 @@ int storagemode =0;
 int debug = 1;
 int inputcheck = 0; //read digital inputs
 int outputcheck = 0; //check outputs
-int candebug = 0; //view can frames
+int candebug = 1; //view can frames
 int debugCur = 0;
 int menuload = 0;
 int balancecells;
