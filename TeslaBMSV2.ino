@@ -29,13 +29,13 @@ const int IN2 = 17; // input 2- high active
 const int IN3 = 19; // input 1 - high active
 const int IN4 = 18; // input 2- high active
 const int OUT1 = 11;// output 1 - high active
-const int OUT2 = 12;// output 1 - high active
-const int OUT3 = 20;// output 1 - high active
-const int OUT4 = 21;// output 1 - high active
-const int OUT5 = 22;// output 1 - high active
-const int OUT6 = 23;// output 1 - high active
-const int OUT7 = 5;// output 1 - high active
-const int OUT8 = 6;// output 1 - high active
+const int OUT2 = 12;// output 2 - high active
+const int OUT3 = 20;// output 3 - high active
+const int OUT4 = 21;// output 4 - high active
+const int OUT5 = 22;// output 5 - Low active
+const int OUT6 = 23;// output 6 - Low active
+const int OUT7 = 5;// output 7 - Low active
+const int OUT8 = 6;// output 8 - Low active
 const int led = 13;
 const int BMBfault = 11;
 
@@ -124,13 +124,13 @@ uint16_t socvolt[4] = {3100, 10, 4100, 90};
 int outputstate = 0;
 int incomingByte = 0;
 int x = 0;
-int storagemode =0;
+int storagemode = 0;
 
 //Debugging modes//////////////////
 int debug = 1;
 int inputcheck = 0; //read digital inputs
 int outputcheck = 0; //check outputs
-int candebug = 1; //view can frames
+int candebug = 0; //view can frames
 int debugCur = 0;
 int menuload = 0;
 int balancecells;
@@ -234,10 +234,13 @@ void loop()
   {
     menu();
   }
-
-  contcon();
+  if (outputcheck != 1)
+  {
+    contcon();
+  }
   if (ESSmode == 1)
   {
+    bmsstatus = Boot;
     if (digitalRead(IN1) == LOW)//Key OFF
     {
       if (storagemode == 1)
@@ -291,8 +294,9 @@ void loop()
     {
       case (Boot):
         Discharge = 0;
-
-
+        digitalWrite(OUT3, LOW);//turn off charger
+        digitalWrite(OUT1, LOW);//turn off discharge
+        contctrl = 0;
         bmsstatus = Ready;
         break;
 
@@ -992,6 +996,54 @@ void menu()
 
 
   incomingByte = Serial.read(); // read the incoming byte:
+  if (menuload == 4)
+  {
+    switch (incomingByte)
+    {
+
+      case '1':
+        menuload = 1;
+        candebug = !candebug;
+        incomingByte = 'd';
+        break;
+
+      case '2':
+        menuload = 1;
+        debugCur = !debugCur;
+        incomingByte = 'd';
+        break;
+
+      case '3':
+        menuload = 1;
+        outputcheck = !outputcheck;
+        incomingByte = 'd';
+        break;
+
+      case '4':
+        menuload = 1;
+        inputcheck = !inputcheck;
+        incomingByte = 'd';
+        break;
+
+      case '5':
+        menuload = 1;
+        ESSmode = !ESSmode;
+        incomingByte = 'd';
+        break;
+
+
+      case 113: //q for quite menu
+
+        menuload = 0;
+        incomingByte = 115;
+        break;
+
+      default:
+        // if nothing else matches, do the default
+        // default is optional
+        break;
+    }
+  }
 
   if (menuload == 2)
   {
@@ -1006,7 +1058,7 @@ void menu()
 
 
 
-      case 113: //c for calibrate zero offset
+      case 113: //q for quite menu
 
         menuload = 0;
         incomingByte = 115;
@@ -1221,6 +1273,27 @@ void menu()
         menuload = 0;
         debug = 1;
         break;
+      case 'd': //d for debug settings
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println("Debug Settings Menu");
+        SERIALCONSOLE.println("Toggle on/off");
+        SERIALCONSOLE.print("1 - Can Debug :");
+        SERIALCONSOLE.println(candebug);
+        SERIALCONSOLE.print("2 - Current Debug :");
+        SERIALCONSOLE.println(debugCur);
+        SERIALCONSOLE.print("3 - Output Check :");
+        SERIALCONSOLE.println(outputcheck);
+        SERIALCONSOLE.print("4 - Input Check :");
+        SERIALCONSOLE.println(inputcheck);
+        SERIALCONSOLE.print("5 - ESS mode :");
+        SERIALCONSOLE.println(ESSmode);
+        SERIALCONSOLE.println("q - Go back to menu");
+        menuload = 4;
+        break;
 
       case 99: //c for calibrate zero offset
         SERIALCONSOLE.println();
@@ -1261,8 +1334,9 @@ void menu()
     SERIALCONSOLE.println();
     SERIALCONSOLE.println("MENU");
     SERIALCONSOLE.println("Debugging Paused");
-    SERIALCONSOLE.println("c - Current Sensor Calibration");
     SERIALCONSOLE.println("b - Battery Settings");
+    SERIALCONSOLE.println("c - Current Sensor Calibration");
+    SERIALCONSOLE.println("d - Debug Settings");
     SERIALCONSOLE.println("R - Restart BMS");
     SERIALCONSOLE.println("q - exit menu");
     debug = 0;
