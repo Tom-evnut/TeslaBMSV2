@@ -65,6 +65,7 @@ unsigned long conttimer, Pretimer = 0;
 int Pretime = 5000; //precharge timer
 int conthold = 50; //holding duty cycle for contactor 0-255
 int Precurrent = 1000; //ma before closing main contator
+uint16_t pwmfreq = 10000;//pwm frequency
 
 int gaugelow = 255; //empty fuel gauge pwm
 int gaugehigh = 70; //full fuel gauge pwm
@@ -183,6 +184,11 @@ void setup()
   pinMode(OUT7, OUTPUT); // pwm driver output
   pinMode(OUT8, OUTPUT); // pwm driver output
   pinMode(led, OUTPUT);
+
+  analogWriteFrequency(OUT5, pwmfreq);
+  analogWriteFrequency(OUT6, pwmfreq);
+  analogWriteFrequency(OUT7, pwmfreq);
+  analogWriteFrequency(OUT8, pwmfreq);
 
   Can0.begin(500000);
 
