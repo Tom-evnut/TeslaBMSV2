@@ -205,6 +205,40 @@ void setup()
   SERIALCONSOLE.begin(115200);
   SERIALCONSOLE.println("Starting up!");
   SERIALCONSOLE.println("SimpBMS V2 Tesla");
+
+  // Display reason the Teensy was last reset
+  Serial.println();
+  Serial.println("Reason for last Reset: ");
+
+  if (RCM_SRS1 & RCM_SRS1_SACKERR)   Serial.println("Stop Mode Acknowledge Error Reset");
+  if (RCM_SRS1 & RCM_SRS1_MDM_AP)    Serial.println("MDM-AP Reset");
+  if (RCM_SRS1 & RCM_SRS1_SW)        Serial.println("Software Reset");                   // reboot with SCB_AIRCR = 0x05FA0004
+  if (RCM_SRS1 & RCM_SRS1_LOCKUP)    Serial.println("Core Lockup Event Reset");
+  if (RCM_SRS0 & RCM_SRS0_POR)       Serial.println("Power-on Reset");                   // removed / applied power
+  if (RCM_SRS0 & RCM_SRS0_PIN)       Serial.println("External Pin Reset");               // Reboot with software download
+  if (RCM_SRS0 & RCM_SRS0_WDOG)      Serial.println("Watchdog(COP) Reset");              // WDT timed out
+  if (RCM_SRS0 & RCM_SRS0_LOC)       Serial.println("Loss of External Clock Reset");
+  if (RCM_SRS0 & RCM_SRS0_LOL)       Serial.println("Loss of Lock in PLL Reset");
+  if (RCM_SRS0 & RCM_SRS0_LVD)       Serial.println("Low-voltage Detect Reset");
+  Serial.println();
+  ///////////////////
+
+
+  // enable WDT
+  noInterrupts();                                         // don't allow interrupts while setting up WDOG
+  WDOG_UNLOCK = WDOG_UNLOCK_SEQ1;                         // unlock access to WDOG registers
+  WDOG_UNLOCK = WDOG_UNLOCK_SEQ2;
+  delayMicroseconds(1);                                   // Need to wait a bit..
+
+  WDOG_TOVALH = 0x1000;
+  WDOG_TOVALL = 0x0000;
+  WDOG_PRESC  = 0;
+  WDOG_STCTRLH |= WDOG_STCTRLH_ALLOWUPDATE |
+                  WDOG_STCTRLH_WDOGEN | WDOG_STCTRLH_WAITEN |
+                  WDOG_STCTRLH_STOPEN | WDOG_STCTRLH_CLKSRC;
+  interrupts();
+  /////////////////
+
   SERIALBMS.begin(612500); //Tesla serial bus
   //VE.begin(19200); //Victron VE direct bus
 #if defined (__arm__) && defined (__SAM3X8E__)
@@ -422,6 +456,7 @@ void loop()
     updateSOC();
     currentlimit();
     VEcan();
+    resetwdog();
   }
 }
 
@@ -670,13 +705,11 @@ void updateSOC()
     SOCset = 1;
   }
   SOC = ((ampsecond * 0.27777777777778) / (CAP * 1000)) * 100;
-  if (bms.getAvgCellVolt() > settings.OverVSetpoint)
+  if (SOC >= 100)
   {
     ampsecond = (CAP * 1000) / 0.27777777777778 ; //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
-    if (SOC >= 100)
-    {
-      SOC = 100;
-    }
+
+    SOC = 100;
   }
 
 
@@ -1538,3 +1571,10 @@ void outputdebug()
   }
 }
 
+void resetwdog()
+{
+  noInterrupts();                                     //   No - reset WDT
+  WDOG_REFRESH = 0xA602;
+  WDOG_REFRESH = 0xB480;
+  interrupts();
+}
