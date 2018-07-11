@@ -7,6 +7,7 @@ class BMSModuleManager
 public:
     BMSModuleManager();
     int seriescells();
+     void clearmodules();
     void balanceCells();
     void setupBoards();
     void findBoards();

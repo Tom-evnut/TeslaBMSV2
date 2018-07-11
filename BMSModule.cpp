@@ -19,8 +19,19 @@ BMSModule::BMSModule()
   highestTemperature = -100.0f;
   lowestModuleVolt = 200.0f;
   highestModuleVolt = 0.0f;
-  exists = false;
   moduleAddress = 0;
+}
+
+void BMSModule::clearmodule()
+{
+  for (int i = 0; i < 6; i++)
+  {
+    cellVolt[i] = 0.0f;
+  }
+  moduleVolt = 0.0f;
+  temperatures[0] = 0.0f;
+  temperatures[1] = 0.0f;
+  temperatures[2] = 0.0f;
 }
 
 /*

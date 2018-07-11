@@ -5,6 +5,7 @@ class BMSModule
   public:
     BMSModule();
     void readStatus();
+    void clearmodule();
     bool readModuleValues();
     int getscells();
     float getCellVoltage(int cell);

@@ -18,6 +18,17 @@ BMSModuleManager::BMSModuleManager()
   isFaulted = false;
 }
 
+void BMSModuleManager::clearmodules()
+{
+  for (int y = 1; y < 63; y++)
+  {
+    if (modules[y].isExisting())
+    {
+      modules[y].clearmodule();
+    }
+  }
+}
+
 int BMSModuleManager::seriescells()
 {
   spack = 0;
