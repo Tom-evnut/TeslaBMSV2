@@ -57,4 +57,11 @@ typedef struct {
   float IgnoreVolt;
   float balanceVoltage;
   float balanceHyst;
+  float storagedelta;
+  int Scells;
+  int Pstrings;
+  int CAP;
+  int chargecurrentmax;
+  int discurrentmax ; 
+  int socvolt[4];
 } EEPROMSettings;

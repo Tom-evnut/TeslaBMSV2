@@ -4,7 +4,7 @@
 #include "SerialConsole.h"
 #include "Logger.h"
 #include <ADC.h>
-
+#include <EEPROM.h>
 #include <FlexCAN.h>
 #include <SPI.h>
 
@@ -15,12 +15,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 //Simple BMS Settings//
-int CAP = 100; //battery size in Ah
-int Pstrings = 2; // strings in parallel used to divide voltage of pack
-int Scells = 14;//Cells in series
 int ESSmode = 0; //turn on ESS mode, does not respond to key switching
-float storagedelta = 0.3; //in ESS mode in 1 high changes charge and discharge limits by this amount
-
 
 //Simple BMS V2 wiring//
 const int ACUR1 = A0; // current 1
@@ -76,9 +71,9 @@ char* myStrings[] = {"V", "14674", "I", "0", "CE", "-1", "SOC", "800", "TTG", "-
 
 //variables for VE can
 uint16_t chargevoltage = 49100; //max charge voltage in mv
-int chargecurrent, chargecurrentmax = 300; //max charge current in 0.1A
+int chargecurrent = 0;
 uint16_t disvoltage = 42000; // max discharge voltage in mv
-int discurrent, discurrentmax = 300; // max discharge current in 0.1A
+int discurrent = 0;
 int batvcal = 0;
 
 uint16_t SOH = 100; // SOH place holder
@@ -119,7 +114,7 @@ int NextRunningAverage;
 //Variables for SOC calc
 int SOC = 100; //State of Charge
 int SOCset = 0;
-uint16_t socvolt[4] = {3100, 10, 4100, 90};
+
 
 
 //variables
@@ -143,7 +138,7 @@ ADC *adc = new ADC(); // adc object
 void loadSettings()
 {
   Logger::console("Resetting to factory defaults");
-  settings.version = 20;
+  settings.version = EEPROM_VERSION;
   settings.checksum = 2;
   settings.canSpeed = 500000;
   settings.batteryID = 0x01; //in the future should be 0xFF to force it to ask for an address
@@ -160,6 +155,16 @@ void loadSettings()
   settings.balanceVoltage = 3.9f;
   settings.balanceHyst = 0.04f;
   settings.logLevel = 2;
+  settings.CAP = 100; //battery size in Ah
+  settings.Pstrings = 2; // strings in parallel used to divide voltage of pack
+  settings.Scells = 14;//Cells in series
+  settings.storagedelta = 0.3; //in ESS mode in 1 high changes charge and discharge limits by this amount
+  settings.discurrentmax = 300; // max discharge current in 0.1A
+  settings.chargecurrentmax = 300; //max charge current in 0.1A
+  settings.socvolt[0] = 3100; //Voltage and SOC curve for voltage based SOC calc
+  settings.socvolt[1] = 10; //Voltage and SOC curve for voltage based SOC calc
+  settings.socvolt[2] = 4100; //Voltage and SOC curve for voltage based SOC calc
+  settings.socvolt[3] = 90; //Voltage and SOC curve for voltage based SOC calc
 }
 
 CAN_message_t msg;
@@ -250,19 +255,20 @@ void setup()
   SERIALCONSOLE.println("Started serial interface to BMS.");
 
 
-
-  loadSettings();
+  EEPROM.get(0, settings);
+  if (settings.version != EEPROM_VERSION)
+  {
+    loadSettings();
+  }
 
   bms.renumberBoardIDs();
 
   Logger::setLoglevel(Logger::Off); //Debug = 0, Info = 1, Warn = 2, Error = 3, Off = 4
 
   lastUpdate = 0;
-
-  //bms.clearFaults();
   bms.findBoards();
   digitalWrite(led, HIGH);
-  bms.setPstrings(Pstrings);
+  bms.setPstrings(settings.Pstrings);
   bms.setSensors(settings.IgnoreTemp, settings.IgnoreVolt);
 }
 
@@ -287,8 +293,8 @@ void loop()
     {
       if (storagemode == 1)
       {
-        settings.ChargeVsetpoint += storagedelta;
-        settings.DischVsetpoint -= storagedelta;
+        settings.ChargeVsetpoint += settings.storagedelta;
+        settings.DischVsetpoint -= settings.storagedelta;
         storagemode = 0;
       }
     }
@@ -296,8 +302,8 @@ void loop()
     {
       if (storagemode == 0)
       {
-        settings.ChargeVsetpoint -= storagedelta;
-        settings.DischVsetpoint += storagedelta;
+        settings.ChargeVsetpoint -= settings.storagedelta;
+        settings.DischVsetpoint += settings.storagedelta;
         storagemode = 1;
       }
     }
@@ -438,11 +444,10 @@ void loop()
 
     //UV  check
 
-    if (bms.getLowCellVolt() < settings.UnderVSetpoint)
+    if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() < settings.UnderVSetpoint)
     {
       bmsstatus = Error;
     }
-
 
     if (debug != 0)
     {
@@ -727,17 +732,17 @@ void updateSOC()
 {
   if (SOCset == 0)
   {
-    SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), socvolt[0], socvolt[2], socvolt[1], socvolt[3]);
+    SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
     SERIALCONSOLE.print("  ");
     SERIALCONSOLE.print(SOC);
     SERIALCONSOLE.print("  ");
-    ampsecond = (SOC * CAP * 10) / 0.27777777777778 ;
+    ampsecond = (SOC * settings.CAP * 10) / 0.27777777777778 ;
     SOCset = 1;
   }
-  SOC = ((ampsecond * 0.27777777777778) / (CAP * 1000)) * 100;
+  SOC = ((ampsecond * 0.27777777777778) / (settings.CAP * 1000)) * 100;
   if (SOC >= 100)
   {
-    ampsecond = (CAP * 1000) / 0.27777777777778 ; //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
+    ampsecond = (settings.CAP * 1000) / 0.27777777777778 ; //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
     SOC = 100;
   }
 
@@ -902,14 +907,14 @@ void VEcan() //communication with Victron system over CAN
 {
   msg.id  = 0x351;
   msg.len = 8;
-  msg.buf[0] = lowByte(uint16_t((settings.ChargeVsetpoint * Scells) * 10));
-  msg.buf[1] = highByte(uint16_t((settings.ChargeVsetpoint * Scells) * 10));
+  msg.buf[0] = lowByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
+  msg.buf[1] = highByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
   msg.buf[2] = lowByte(chargecurrent);
   msg.buf[3] = highByte(chargecurrent);
   msg.buf[4] = lowByte(discurrent );
   msg.buf[5] = highByte(discurrent);
-  msg.buf[6] = lowByte(uint16_t((settings.DischVsetpoint * Scells) * 10));
-  msg.buf[7] = highByte(uint16_t((settings.DischVsetpoint * Scells) * 10));
+  msg.buf[6] = lowByte(uint16_t((settings.DischVsetpoint * settings.Scells ) * 10));
+  msg.buf[7] = highByte(uint16_t((settings.DischVsetpoint * settings.Scells ) * 10));
   Can0.write(msg);
 
   msg.id  = 0x355;
@@ -1209,13 +1214,13 @@ void menu()
         SERIALCONSOLE.print(settings.balanceHyst * 1000, 0);
         SERIALCONSOLE.print("mV Balance Voltage Hystersis - 6 ");
         SERIALCONSOLE.println("  ");
-        SERIALCONSOLE.print(CAP);
+        SERIALCONSOLE.print(settings.CAP);
         SERIALCONSOLE.print("Ah Battery Capacity - 7 ");
         SERIALCONSOLE.println("  ");
-        SERIALCONSOLE.print(chargecurrentmax * 0.001);
+        SERIALCONSOLE.print(settings.chargecurrentmax * 0.1);
         SERIALCONSOLE.print("A max Charge - 8 ");
         SERIALCONSOLE.println("  ");
-        SERIALCONSOLE.print(discurrentmax * 0.001);
+        SERIALCONSOLE.print(settings.discurrentmax * 0.1);
         SERIALCONSOLE.print("A max Discharge - 9 ");
         SERIALCONSOLE.println("  ");
         SERIALCONSOLE.print(settings.ChargeVsetpoint * 1000, 0);
@@ -1224,11 +1229,23 @@ void menu()
         SERIALCONSOLE.print(settings.DischVsetpoint * 1000, 0);
         SERIALCONSOLE.print("mV Discharge Voltage Limit Setpoint - b");
         SERIALCONSOLE.println("  ");
-        SERIALCONSOLE.print(Pstrings, 0);
+        SERIALCONSOLE.print(settings.Pstrings);
         SERIALCONSOLE.print(" Slave strings in parallel - c");
         SERIALCONSOLE.println("  ");
-        SERIALCONSOLE.print(Scells);
+        SERIALCONSOLE.print(settings.Scells );
         SERIALCONSOLE.print(" Cells in series - s");
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.print(settings.socvolt[0] );
+        SERIALCONSOLE.print(" mV setpoint 1 - g");
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.print(settings.socvolt[1] );
+        SERIALCONSOLE.print(" SOC setpoint 1 -h");
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.print(settings.socvolt[2] );
+        SERIALCONSOLE.print(" mV setpoint 2 - i");
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.print(settings.socvolt[3] );
+        SERIALCONSOLE.print(" SOC setpoint 2 - j");
         SERIALCONSOLE.println("  ");
         break;
       case 101: //e dispaly settings
@@ -1244,6 +1261,43 @@ void menu()
           settings.OverVSetpoint = settings.OverVSetpoint / 1000;
           SERIALCONSOLE.print(settings.OverVSetpoint * 1000, 0);
           SERIALCONSOLE.print("mV Over Voltage Setpoint");
+        }
+        break;
+
+      case 'g':
+        if (Serial.available() > 0)
+        {
+          settings.socvolt[0] = Serial.parseInt();
+          SERIALCONSOLE.print(settings.socvolt[0]);
+          SERIALCONSOLE.print(" mV setpoint 1");
+        }
+        break;
+
+
+      case 'h':
+        if (Serial.available() > 0)
+        {
+          settings.socvolt[1] = Serial.parseInt();
+          SERIALCONSOLE.print(settings.socvolt[1]);
+          SERIALCONSOLE.print(" SOC setpoint 1");
+        }
+        break;
+
+      case 'i':
+        if (Serial.available() > 0)
+        {
+          settings.socvolt[2] = Serial.parseInt();
+          SERIALCONSOLE.print(settings.socvolt[2]);
+          SERIALCONSOLE.print(" mV setpoint 2");
+        }
+        break;
+
+      case 'j':
+        if (Serial.available() > 0)
+        {
+          settings.socvolt[3] = Serial.parseInt();
+          SERIALCONSOLE.print(settings.socvolt[3]);
+          SERIALCONSOLE.print(" SOC setpoint 3");
         }
         break;
 
@@ -1270,17 +1324,18 @@ void menu()
       case 'c': //c Pstrings
         if (Serial.available() > 0)
         {
-          Pstrings = Serial.parseInt();
-          SERIALCONSOLE.print(Pstrings, 0);
+          settings.Pstrings = Serial.parseInt();
+          SERIALCONSOLE.print(settings.Pstrings);
           SERIALCONSOLE.print("Slave strings in parallel");
+          bms.setPstrings(settings.Pstrings);
         }
         break;
 
       case 's': //
         if (Serial.available() > 0)
         {
-          Scells = Serial.parseInt();
-          SERIALCONSOLE.print(Scells );
+          settings.Scells  = Serial.parseInt();
+          SERIALCONSOLE.print(settings.Scells  );
           SERIALCONSOLE.print(" Cells in series");
         }
         break;
@@ -1336,24 +1391,24 @@ void menu()
       case 55://7 Battery Capacity inAh
         if (Serial.available() > 0)
         {
-          CAP = Serial.parseInt();
-          SERIALCONSOLE.print(CAP);
+          settings.CAP = Serial.parseInt();
+          SERIALCONSOLE.print(settings.CAP);
           SERIALCONSOLE.print("Ah Battery Capacity");
         }
         break;
       case 56://8 chargecurrent A
         if (Serial.available() > 0)
         {
-          chargecurrentmax = Serial.parseInt() * 10;
-          SERIALCONSOLE.print(chargecurrentmax * 0.1);
+          settings.chargecurrentmax = Serial.parseInt() * 10;
+          SERIALCONSOLE.print(settings.chargecurrentmax * 0.1);
           SERIALCONSOLE.print("A max Charge");
         }
         break;
       case 57://9 discurrent in A
         if (Serial.available() > 0)
         {
-          discurrentmax = Serial.parseInt() * 10;
-          SERIALCONSOLE.print(discurrentmax * 0.1);
+          settings.discurrentmax = Serial.parseInt() * 10;
+          SERIALCONSOLE.print(settings.discurrentmax * 0.1);
           SERIALCONSOLE.print("A max Discharge");
         }
         break;
@@ -1370,7 +1425,7 @@ void menu()
         break;
 
       case 113: //q to go back to main menu
-
+        EEPROM.put(0, settings); //save all change to eeprom
         menuload = 0;
         debug = 1;
         break;
@@ -1424,6 +1479,7 @@ void menu()
         SERIALCONSOLE.println("d - Display settings");
         SERIALCONSOLE.println("e - Edit settings");
         SERIALCONSOLE.println("q - Go back to menu");
+        SERIALCONSOLE.println();
         menuload = 3;
         break;
 
@@ -1532,22 +1588,22 @@ void currentlimit()
     {
       if (bms.getAvgTemperature() < settings.ChargeTSetpoint)
       {
-        discurrent = discurrentmax;
-        chargecurrent = map(bms.getAvgTemperature(), settings.UnderTSetpoint, settings.ChargeTSetpoint, 0, chargecurrentmax);
+        discurrent = settings.discurrentmax;
+        chargecurrent = map(bms.getAvgTemperature(), settings.UnderTSetpoint, settings.ChargeTSetpoint, 0, settings.chargecurrentmax);
       }
       else
       {
         if (bms.getAvgTemperature() < settings.DisTSetpoint)
         {
-          discurrent = discurrentmax;
-          chargecurrent = chargecurrentmax;
+          discurrent = settings.discurrentmax;
+          chargecurrent = settings.chargecurrentmax;
         }
         else
         {
           if (bms.getAvgTemperature() < settings.OverTSetpoint)
           {
-            discurrent = map(bms.getAvgTemperature(), settings.DisTSetpoint, settings.OverTSetpoint, discurrentmax, 0);
-            chargecurrent = chargecurrentmax;
+            discurrent = map(bms.getAvgTemperature(), settings.DisTSetpoint, settings.OverTSetpoint, settings.discurrentmax, 0);
+            chargecurrent = settings.chargecurrentmax;
           }
           else
           {
