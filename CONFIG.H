@@ -62,6 +62,9 @@ typedef struct {
   int Pstrings;
   int CAP;
   int chargecurrentmax;
-  int discurrentmax ; 
+  int discurrentmax ;
   int socvolt[4];
+  int invertcur;
+  int cursens;
+  int voltsoc; 
 } EEPROMSettings;

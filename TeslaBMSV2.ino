@@ -44,7 +44,6 @@ byte bmsstatus = 0;
 #define Precharge 4
 #define Error 5
 //
-int cursens = 2;
 //Current sensor values
 #define Undefined 0
 #define Analogue 1
@@ -95,7 +94,6 @@ signed long CANmilliamps;
 
 //variables for current calulation
 int value;
-int invertcur = 0;
 uint16_t offset1 = 1735;
 uint16_t offset2 = 1733;
 int highconv = 285;
@@ -165,6 +163,9 @@ void loadSettings()
   settings.socvolt[1] = 10; //Voltage and SOC curve for voltage based SOC calc
   settings.socvolt[2] = 4100; //Voltage and SOC curve for voltage based SOC calc
   settings.socvolt[3] = 90; //Voltage and SOC curve for voltage based SOC calc
+  settings.invertcur = 0; //Invert current sensor direction
+  settings.cursens = 2;
+  settings.voltsoc = 0; //SOC purely voltage based
 }
 
 CAN_message_t msg;
@@ -432,7 +433,7 @@ void loop()
         break;
     }
   }
-  if (cursens == Analogue)
+  if ( settings.cursens == Analogue)
   {
     getcurrent();
   }
@@ -602,7 +603,7 @@ void printbmsstat()
 
 void getcurrent()
 {
-  if (cursens == Analogue)
+  if ( settings.cursens == Analogue)
   {
     if (currentact < 19000 && currentact > -19000)
     {
@@ -668,7 +669,7 @@ void getcurrent()
       }
     }
   }
-  if (invertcur == 1)
+  if (settings.invertcur == 1)
   {
     RawCur = RawCur * -1;
   }
@@ -686,7 +687,7 @@ void getcurrent()
 
   currentact = RunningAverageCur;
 
-  if (cursens == Analogue)
+  if ( settings.cursens == Analogue)
   {
     if (sensor == 1)
     {
@@ -739,7 +740,19 @@ void updateSOC()
     ampsecond = (SOC * settings.CAP * 10) / 0.27777777777778 ;
     SOCset = 1;
   }
-  SOC = ((ampsecond * 0.27777777777778) / (settings.CAP * 1000)) * 100;
+  if (settings.cursens == 1)
+  {
+    SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
+
+    ampsecond = (SOC * settings.CAP * 10) / 0.27777777777778 ;
+  }
+  if (settings.voltsoc == 1)
+  {
+    SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
+
+    ampsecond = (SOC * settings.CAP * 10) / 0.27777777777778 ;
+  }
+    SOC = ((ampsecond * 0.27777777777778) / (settings.CAP * 1000)) * 100;
   if (SOC >= 100)
   {
     ampsecond = (settings.CAP * 1000) / 0.27777777777778 ; //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
@@ -754,7 +767,7 @@ void updateSOC()
 
   if (debug != 0)
   {
-    if (cursens == Analogue)
+    if ( settings.cursens == Analogue)
     {
       if (sensor == 1)
       {
@@ -1136,7 +1149,13 @@ void menu()
 
       case '1':
         menuload = 1;
-        invertcur = !invertcur;
+        settings.invertcur = !settings.invertcur;
+        incomingByte = 'c';
+        break;
+
+      case '2':
+        menuload = 1;
+        settings.voltsoc = !settings.voltsoc;
         incomingByte = 'c';
         break;
 
@@ -1147,16 +1166,16 @@ void menu()
         break;
 
       case 115: //s for switch sensor
-        if (cursens == Analogue)
+        if (settings.cursens == Analogue)
         {
-          cursens = Canbus;
+          settings.cursens = Canbus;
           SERIALCONSOLE.println("  ");
           SERIALCONSOLE.print(" CANbus Current Sensor ");
           SERIALCONSOLE.println("  ");
         }
         else
         {
-          cursens = Analogue;
+          settings.cursens = Analogue;
           SERIALCONSOLE.println("  ");
           SERIALCONSOLE.print(" Analogue Current Sensor ");
           SERIALCONSOLE.println("  ");
@@ -1463,7 +1482,9 @@ void menu()
         SERIALCONSOLE.println("c - To calibrate sensor offset");
         SERIALCONSOLE.println("s - To switch between Current Sensors");
         SERIALCONSOLE.print("1 - invert current :");
-        SERIALCONSOLE.println(invertcur);
+        SERIALCONSOLE.println(settings.invertcur);
+        SERIALCONSOLE.print("2 - Pure Voltage based SOC :");
+        SERIALCONSOLE.println(settings.voltsoc);
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 2;
         break;
@@ -1557,7 +1578,7 @@ void CAB300()
   {
     CANmilliamps = (0x80000000 - CANmilliamps) * -1;
   }
-  if (cursens == Canbus)
+  if ( settings.cursens == Canbus)
   {
     RawCur = CANmilliamps;
     getcurrent();
