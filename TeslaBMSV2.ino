@@ -57,9 +57,6 @@ int Discharge;
 int pulltime = 1000;
 int contctrl, contstat = 0; //1 = out 5 high 2 = out 6 high 3 = both high
 unsigned long conttimer, Pretimer = 0;
-int Pretime = 5000; //precharge timer
-int conthold = 50; //holding duty cycle for contactor 0-255
-int Precurrent = 1000; //ma before closing main contator
 uint16_t pwmfreq = 10000;//pwm frequency
 
 int gaugelow = 255; //empty fuel gauge pwm
@@ -166,6 +163,9 @@ void loadSettings()
   settings.invertcur = 0; //Invert current sensor direction
   settings.cursens = 2;
   settings.voltsoc = 0; //SOC purely voltage based
+  settings.Pretime = 5000; //ms of precharge time
+  settings.conthold = 50; //holding duty cycle for contactor 0-255
+  settings.Precurrent = 1000; //ma before closing main contator
 }
 
 CAN_message_t msg;
@@ -737,25 +737,25 @@ void updateSOC()
     SERIALCONSOLE.print("  ");
     SERIALCONSOLE.print(SOC);
     SERIALCONSOLE.print("  ");
-    ampsecond = (SOC * settings.CAP * 10) / 0.27777777777778 ;
+    ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
     SOCset = 1;
   }
   if (settings.cursens == 1)
   {
     SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
 
-    ampsecond = (SOC * settings.CAP * 10) / 0.27777777777778 ;
+    ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
   }
   if (settings.voltsoc == 1)
   {
     SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
 
-    ampsecond = (SOC * settings.CAP * 10) / 0.27777777777778 ;
+    ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
   }
-    SOC = ((ampsecond * 0.27777777777778) / (settings.CAP * 1000)) * 100;
+  SOC = ((ampsecond * 0.27777777777778) / (settings.CAP * settings.Pstrings * 1000)) * 100;
   if (SOC >= 100)
   {
-    ampsecond = (settings.CAP * 1000) / 0.27777777777778 ; //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
+    ampsecond = (settings.CAP * settings.Pstrings * 1000) / 0.27777777777778 ; //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
     SOC = 100;
   }
 
@@ -800,7 +800,7 @@ void Prechargecon()
   {
     digitalWrite(OUT4, HIGH);//Negative Contactor Close
     contctrl = 2;
-    if (Pretimer + Pretime > millis() || currentact > Precurrent)
+    if (Pretimer + settings.Pretime > millis() || currentact > settings.Precurrent)
     {
       digitalWrite(OUT2, HIGH);//precharge
     }
@@ -846,7 +846,7 @@ void contcon()
       }
       if (conttimer < millis())
       {
-        analogWrite(OUT5, conthold);
+        analogWrite(OUT5, settings.conthold);
         contstat = contstat | 1;
         conttimer = 0;
       }
@@ -861,7 +861,7 @@ void contcon()
       }
       if (conttimer < millis())
       {
-        analogWrite(OUT6, conthold);
+        analogWrite(OUT6, settings.conthold);
         contstat = contstat | 2;
         conttimer = 0;
       }
@@ -1189,6 +1189,58 @@ void menu()
         break;
     }
   }
+
+  if (menuload == 5)
+  {
+    switch (incomingByte)
+    {
+      case 101: //e dispaly settings
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.println("Enter Variable Number and New value ");
+        SERIALCONSOLE.println("  ");
+        break;
+
+      case '1':
+        if (Serial.available() > 0)
+        {
+          settings.Pretime = Serial.parseInt();
+          SERIALCONSOLE.print(settings.Pretime );
+          SERIALCONSOLE.print(" mS Precharge Duration");
+          menuload = 1;
+          incomingByte = 'k';
+        }
+        break;
+
+      case '2':
+        if (Serial.available() > 0)
+        {
+          settings.Precurrent = Serial.parseInt();
+          SERIALCONSOLE.print(settings.Precurrent );
+          SERIALCONSOLE.print(" mA Precharge End Current");
+          menuload = 1;
+          incomingByte = 'k';
+        }
+        break;
+
+      case '3':
+        if (Serial.available() > 0)
+        {
+          settings.conthold = Serial.parseInt();
+          SERIALCONSOLE.print(settings.conthold );
+          SERIALCONSOLE.print(" Contactor Hold PWM");
+          menuload = 1;
+          incomingByte = 'k';
+        }
+        break;
+
+      case 113: //q to go back to main menu
+
+        menuload = 0;
+        incomingByte = 115;
+        break;
+    }
+  }
+
   if (menuload == 3)
   {
     switch (incomingByte)
@@ -1443,6 +1495,31 @@ void menu()
         CPU_REBOOT ;
         break;
 
+      case 'k': //contactor settings
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println("Contactor Settings Menu");
+        SERIALCONSOLE.print("1 - PreCharge Timer :");
+        SERIALCONSOLE.println(settings.Pretime);
+        SERIALCONSOLE.print("2 - PreCharge Finish Current :");
+        SERIALCONSOLE.println(settings.Precurrent);
+        SERIALCONSOLE.print("3 - PWM contactor Hold 0-255 :");
+        SERIALCONSOLE.println(settings.conthold);
+        /*
+          SERIALCONSOLE.print("4 - Input Check :");
+          SERIALCONSOLE.println(inputcheck);
+          SERIALCONSOLE.print("5 - ESS mode :");
+          SERIALCONSOLE.println(ESSmode);
+          SERIALCONSOLE.print("6 - Cells Present Reset :");
+          SERIALCONSOLE.println(cellspresent);
+          SERIALCONSOLE.println("q - Go back to menu");
+        */
+        menuload = 5;
+        break;
+
       case 113: //q to go back to main menu
         EEPROM.put(0, settings); //save all change to eeprom
         menuload = 0;
@@ -1518,6 +1595,7 @@ void menu()
     SERIALCONSOLE.println("Debugging Paused");
     SERIALCONSOLE.println("b - Battery Settings");
     SERIALCONSOLE.println("c - Current Sensor Calibration");
+    SERIALCONSOLE.println("k - Current Sensor Calibration");
     SERIALCONSOLE.println("d - Debug Settings");
     SERIALCONSOLE.println("R - Restart BMS");
     SERIALCONSOLE.println("q - exit menu");

@@ -36,7 +36,7 @@
 
 #define MAX_MODULE_ADDR     0x3E
 
-#define EEPROM_VERSION      0x10    //update any time EEPROM struct below is changed.
+#define EEPROM_VERSION      0x11    //update any time EEPROM struct below is changed.
 #define EEPROM_PAGE         0
 
 typedef struct {
@@ -67,4 +67,7 @@ typedef struct {
   int invertcur;
   int cursens;
   int voltsoc; 
+  int Pretime;
+  int conthold;
+  int Precurrent;
 } EEPROMSettings;
