@@ -101,7 +101,7 @@ int value;
 float currentact, RawCur;
 float ampsecond;
 unsigned long lasttime;
-unsigned long looptime, cleartime = 0; //ms
+unsigned long looptime, cleartime, baltimer = 0; //ms
 int currentsense = 14;
 int sensor = 1;
 
@@ -154,6 +154,7 @@ void loadSettings()
   settings.IgnoreVolt = 0.5;//
   settings.balanceVoltage = 3.9f;
   settings.balanceHyst = 0.04f;
+  settings.balanceDuty = 50;
   settings.logLevel = 2;
   settings.CAP = 100; //battery size in Ah
   settings.Pstrings = 2; // strings in parallel used to divide voltage of pack
@@ -326,8 +327,18 @@ void loop()
     }
     if (bms.getHighCellVolt() > settings.balanceVoltage && bms.getHighCellVolt() > bms.getLowCellVolt() + settings.balanceHyst)
     {
-      bms.balanceCells();
-      balancecells = 1;
+      if (baltimer > millis())
+      {
+        bms.balanceCells();
+        balancecells = 1;
+      }
+      else
+      {
+        if (millis() - baltimer > (10 * (100 - settings.balanceDuty)))
+        {
+          baltimer = millis() + (10 * settings.balanceDuty);
+        }
+      }
     }
     else
     {
@@ -372,8 +383,18 @@ void loop()
         Discharge = 0;
         if (bms.getHighCellVolt() > settings.balanceVoltage && bms.getHighCellVolt() > bms.getLowCellVolt() + settings.balanceHyst)
         {
-          bms.balanceCells();
-          balancecells = 1;
+          if (baltimer > millis())
+          {
+            bms.balanceCells();
+            balancecells = 1;
+          }
+          else
+          {
+            if (millis() - baltimer > (10 * (100 - settings.balanceDuty)))
+            {
+              baltimer = millis() + (10 * settings.balanceDuty);
+            }
+          }
         }
         else
         {
@@ -415,8 +436,18 @@ void loop()
         digitalWrite(OUT3, HIGH);//enable charger
         if (bms.getHighCellVolt() > settings.balanceVoltage && bms.getHighCellVolt() > bms.getLowCellVolt() + settings.balanceHyst)
         {
-          bms.balanceCells();
-          balancecells = 1;
+          if (baltimer > millis())
+          {
+            bms.balanceCells();
+            balancecells = 1;
+          }
+          else
+          {
+            if (millis() - baltimer > (10 * (100 - settings.balanceDuty)))
+            {
+              baltimer = millis() + (10 * settings.balanceDuty);
+            }
+          }
         }
         else
         {
@@ -1345,6 +1376,10 @@ void menu()
         SERIALCONSOLE.print(settings.socvolt[3] );
         SERIALCONSOLE.print(" SOC setpoint 2 - j");
         SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.print(settings.balanceDuty );
+        SERIALCONSOLE.print(" % Balancing - k");
+        SERIALCONSOLE.println("  ");
+
         break;
       case 101: //e dispaly settings
         SERIALCONSOLE.println("  ");
@@ -1361,6 +1396,14 @@ void menu()
           SERIALCONSOLE.print("mV Over Voltage Setpoint");
         }
         break;
+
+      case 'k':
+        if (Serial.available() > 0)
+        {
+          settings.balanceDuty = Serial.parseInt();
+          SERIALCONSOLE.print(settings.balanceDuty);
+          SERIALCONSOLE.print(" % Balance Duty Cycle");
+        }
 
       case 'g':
         if (Serial.available() > 0)
@@ -1860,13 +1903,13 @@ void dashupdate()
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
-  Serial2.print("cur.val=");  
-  Serial2.print(map(abs(currentact), 0, 150000, 360, 90),0);
+  Serial2.print("cur.val=");
+  Serial2.print(map(abs(currentact), 0, 150000, 360, 90), 0);
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
-  Serial2.print("n0.val="); 
-  Serial2.print(abs(currentact)/1000,0);
+  Serial2.print("n0.val=");
+  Serial2.print(abs(currentact) / 1000, 0);
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
