@@ -14,12 +14,13 @@ BMSModuleManager bms;
 SerialConsole console;
 EEPROMSettings settings;
 
+
 //Simple BMS Settings//
 int ESSmode = 0; //turn on ESS mode, does not respond to key switching
 
 //Simple BMS V2 wiring//
-const int ACUR1 = A0; // current 1
-const int ACUR2 = A1; // current 2
+const int ACUR2 = A0; // current 1
+const int ACUR1 = A1; // current 2
 const int IN1 = 17; // input 1 - high active
 const int IN2 = 16; // input 2- high active
 const int IN3 = 18; // input 1 - high active
@@ -54,13 +55,19 @@ byte bmsstatus = 0;
 int Discharge;
 
 //variables for output control
-int pulltime = 1000;
+int pulltime = 100;
 int contctrl, contstat = 0; //1 = out 5 high 2 = out 6 high 3 = both high
-unsigned long conttimer, Pretimer = 0;
-uint16_t pwmfreq = 10000;//pwm frequency
+unsigned long conttimer1, conttimer2, Pretimer = 0;
+uint16_t pwmfreq = 18000;//pwm frequency
 
 int gaugelow = 255; //empty fuel gauge pwm
 int gaugehigh = 70; //full fuel gauge pwm
+
+
+int pwmcurmax = 50;//Max current to be shown with pwm
+int pwmcurmid = 50;//Mid point for pwm dutycycle based on current
+int16_t pwmcurmin = 0;//DONOT fill in, calculated later based on other values
+
 
 //variables for VE driect bus comms
 char* myStrings[] = {"V", "14674", "I", "0", "CE", "-1", "SOC", "800", "TTG", "-1", "Alarm", "OFF", "Relay", "OFF", "AR", "0", "BMV", "600S", "FW", "212", "H1", "-3", "H2", "-3", "H3", "0", "H4", "0", "H5", "0", "H6", "-7", "H7", "13180", "H8", "14774", "H9", "137", "H10", "0", "H11", "0", "H12", "0"};
@@ -91,9 +98,6 @@ signed long CANmilliamps;
 
 //variables for current calulation
 int value;
-uint16_t offset1 = 1735;
-uint16_t offset2 = 1733;
-int highconv = 285;
 float currentact, RawCur;
 float ampsecond;
 unsigned long lasttime;
@@ -102,7 +106,7 @@ int currentsense = 14;
 int sensor = 1;
 
 //running average
-const int RunningAverageCount = 16;
+const int RunningAverageCount = 20;
 float RunningAverageBuffer[RunningAverageCount];
 int NextRunningAverage;
 
@@ -118,6 +122,7 @@ int incomingByte = 0;
 int x = 0;
 int storagemode = 0;
 int cellspresent = 0;
+int dashused = 1;
 
 //Debugging modes//////////////////
 int debug = 1;
@@ -166,6 +171,10 @@ void loadSettings()
   settings.Pretime = 5000; //ms of precharge time
   settings.conthold = 50; //holding duty cycle for contactor 0-255
   settings.Precurrent = 1000; //ma before closing main contator
+  settings.convhigh = 4; // mV/A current sensor high range channel
+  settings.convlow = 100; // mV/A current sensor low range channel
+  settings.offset1 = 1750; //mV mid point of channel 1
+  settings.offset2 = 1750;//mV mid point of channel 2
 }
 
 CAN_message_t msg;
@@ -205,7 +214,7 @@ void setup()
 
   adc->setAveraging(16); // set number of averages
   adc->setResolution(16); // set bits of resolution
-  adc->setConversionSpeed(ADC_CONVERSION_SPEED::MED_SPEED);
+  adc->setConversionSpeed(ADC_CONVERSION_SPEED::HIGH_SPEED);
   adc->setSamplingSpeed(ADC_SAMPLING_SPEED::MED_SPEED);
   adc->startContinuous(ACUR1, ADC_0);
 
@@ -213,6 +222,8 @@ void setup()
   SERIALCONSOLE.begin(115200);
   SERIALCONSOLE.println("Starting up!");
   SERIALCONSOLE.println("SimpBMS V2 Tesla");
+
+  Serial2.begin(9600);
 
   // Display reason the Teensy was last reset
   Serial.println();
@@ -271,6 +282,11 @@ void setup()
   digitalWrite(led, HIGH);
   bms.setPstrings(settings.Pstrings);
   bms.setSensors(settings.IgnoreTemp, settings.IgnoreVolt);
+
+  ////Calculate fixed numbers
+  pwmcurmin = (pwmcurmid / 50 * pwmcurmax * -1);
+  ////
+
 }
 
 void loop()
@@ -320,22 +336,25 @@ void loop()
     if (bms.getLowCellVolt() < settings.UnderVSetpoint)
     {
       digitalWrite(OUT1, LOW);//turn off discharge
-      contctrl = 0;
+      contctrl = contctrl & 2;
     }
     else
     {
       digitalWrite(OUT1, HIGH);//turn on discharge
-      contctrl = 1;
+      contctrl = contctrl | 1;
     }
 
     if (bms.getHighCellVolt() > settings.OverVSetpoint)
     {
       digitalWrite(OUT3, LOW);//turn off charger
+      contctrl = contctrl & 1;
     }
     else
     {
       digitalWrite(OUT3, HIGH);//turn on charger
+      contctrl = contctrl | 2;
     }
+    pwmcomms();
   }
   else
   {
@@ -437,6 +456,7 @@ void loop()
   {
     getcurrent();
   }
+
   if (millis() - looptime > 500)
   {
 
@@ -479,6 +499,7 @@ void loop()
         bmsstatus = Error;
       }
     }
+    dashupdate();
 
     resetwdog();
   }
@@ -615,27 +636,30 @@ void getcurrent()
       sensor = 2;
       adc->startContinuous(ACUR2, ADC_0);
     }
-
     if (sensor == 1)
     {
       if (debugCur != 0)
       {
+        SERIALCONSOLE.println();
         SERIALCONSOLE.print("Low Range: ");
         SERIALCONSOLE.print("Value ADC0: ");
       }
       value = (uint16_t)adc->analogReadContinuous(ADC_0); // the unsigned is necessary for 16 bits, otherwise values larger than 3.3/2 V are negative!
       if (debugCur != 0)
       {
-        SERIALCONSOLE.print(value * 3.3 / adc->getMaxValue(ADC_0), 5);
+        SERIALCONSOLE.print(value * 3300 / adc->getMaxValue(ADC_0)); //- settings.offset1)
         SERIALCONSOLE.print("  ");
+        SERIALCONSOLE.print(settings.offset1);
       }
-      RawCur = (float(value * 3300 / adc->getMaxValue(ADC_0)) - offset1) * 15.7;
+      RawCur = (float(value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset1) / (settings.convlow * 0.00066);
+
       if (value < 100 || value > (adc->getMaxValue(ADC_0) - 100))
       {
         RawCur = 0;
       }
       if (debugCur != 0)
       {
+
         SERIALCONSOLE.print("  ");
         SERIALCONSOLE.print(RawCur);
         SERIALCONSOLE.print("mA");
@@ -646,16 +670,18 @@ void getcurrent()
     {
       if (debugCur != 0)
       {
+        SERIALCONSOLE.println();
         SERIALCONSOLE.print("High Range: ");
         SERIALCONSOLE.print("Value ADC0: ");
       }
       value = (uint16_t)adc->analogReadContinuous(ADC_0); // the unsigned is necessary for 16 bits, otherwise values larger than 3.3/2 V are negative!
       if (debugCur != 0)
       {
-        SERIALCONSOLE.print(value * 3.3 / adc->getMaxValue(ADC_0), 5);
+        SERIALCONSOLE.print(value * 3300 / adc->getMaxValue(ADC_0) );//- settings.offset2)
         SERIALCONSOLE.print("  ");
+        SERIALCONSOLE.print(settings.offset2);
       }
-      RawCur = (float(value * 3300 / adc->getMaxValue(ADC_0)) - offset2) * highconv;
+      RawCur = (float(value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset2) / (settings.convhigh * 0.00066);
       if (value < 100 || value > (adc->getMaxValue(ADC_0) - 100))
       {
         RawCur = 0;
@@ -839,31 +865,31 @@ void contcon()
 
     if ((contctrl & 1) == 1)
     {
-      if (conttimer == 0)
+      if (conttimer1 == 0)
       {
         analogWrite(OUT5, 255);
-        conttimer = millis() + pulltime ;
+        conttimer1 = millis() + pulltime ;
       }
-      if (conttimer < millis())
+      if (conttimer1 < millis())
       {
         analogWrite(OUT5, settings.conthold);
         contstat = contstat | 1;
-        conttimer = 0;
+        conttimer1 = 0;
       }
     }
 
     if ((contctrl & 2) == 2)
     {
-      if (conttimer == 0)
+      if (conttimer2 == 0)
       {
         analogWrite(OUT6, 255);
-        conttimer = millis() + pulltime ;
+        conttimer2 = millis() + pulltime ;
       }
-      if (conttimer < millis())
+      if (conttimer2 < millis())
       {
         analogWrite(OUT6, settings.conthold);
         contstat = contstat | 2;
-        conttimer = 0;
+        conttimer2 = 0;
       }
     }
     /*
@@ -887,16 +913,17 @@ void calcur()
 {
   adc->startContinuous(ACUR1, ADC_0);
   sensor = 1;
+  x = 0;
   SERIALCONSOLE.print(" Calibrating Current Offset ::::: ");
   while (x < 20)
   {
-    offset1 = offset1 + ((uint16_t)adc->analogReadContinuous(ADC_0) * 3300 / adc->getMaxValue(ADC_0));
+    settings.offset1 = settings.offset1 + ((uint16_t)adc->analogReadContinuous(ADC_0) * 3300 / adc->getMaxValue(ADC_0));
     SERIALCONSOLE.print(".");
     delay(100);
     x++;
   }
-  offset1 = offset1 / 21;
-  SERIALCONSOLE.print(offset1);
+  settings.offset1 = settings.offset1 / 21;
+  SERIALCONSOLE.print(settings.offset1);
   SERIALCONSOLE.print(" current offset 1 calibrated ");
   SERIALCONSOLE.println("  ");
   x = 0;
@@ -905,13 +932,13 @@ void calcur()
   SERIALCONSOLE.print(" Calibrating Current Offset ::::: ");
   while (x < 20)
   {
-    offset2 = offset2 + ((uint16_t)adc->analogReadContinuous(ADC_0) * 3300 / adc->getMaxValue(ADC_0));
+    settings.offset2 = settings.offset2 + ((uint16_t)adc->analogReadContinuous(ADC_0) * 3300 / adc->getMaxValue(ADC_0));
     SERIALCONSOLE.print(".");
     delay(100);
     x++;
   }
-  offset2 = offset2 / 21;
-  SERIALCONSOLE.print(offset2);
+  settings.offset2 = settings.offset2 / 21;
+  SERIALCONSOLE.print(settings.offset2);
   SERIALCONSOLE.print(" current offset 2 calibrated ");
   SERIALCONSOLE.println("  ");
 }
@@ -1258,9 +1285,9 @@ void menu()
         break;
 
       case 114: //r for reset
-        ampsecond = 0;
+        SOCset = 0;
         SERIALCONSOLE.println("  ");
-        SERIALCONSOLE.print(" mAh Zeroed ");
+        SERIALCONSOLE.print(" mAh Reset ");
         SERIALCONSOLE.println("  ");
         break;
 
@@ -1595,7 +1622,7 @@ void menu()
     SERIALCONSOLE.println("Debugging Paused");
     SERIALCONSOLE.println("b - Battery Settings");
     SERIALCONSOLE.println("c - Current Sensor Calibration");
-    SERIALCONSOLE.println("k - Current Sensor Calibration");
+    SERIALCONSOLE.println("k - Contactor Settings");
     SERIALCONSOLE.println("d - Debug Settings");
     SERIALCONSOLE.println("R - Restart BMS");
     SERIALCONSOLE.println("q - exit menu");
@@ -1793,3 +1820,65 @@ void resetwdog()
   WDOG_REFRESH = 0xB480;
   interrupts();
 }
+
+void pwmcomms()
+{
+  int p = 0;
+  p = map((currentact * 0.001), pwmcurmin, pwmcurmax, 50 , 255);
+  analogWrite(OUT7, p);
+  /*
+    Serial.println();
+      Serial.print(p*100/255);
+      Serial.print(" OUT8 ");
+  */
+
+  if (bms.getLowCellVolt() < settings.UnderVSetpoint)
+  {
+    analogWrite(OUT7, 255); //12V to 10V converter 1.5V
+  }
+  else
+  {
+    p = map(SOC, 0, 100, 220, 50);
+    analogWrite(OUT8, p); //2V to 10V converter 1.5-10V
+  }
+  /*
+      Serial.println();
+      Serial.print(p);
+      Serial.print(" OUT7 ");
+  */
+}
+
+void dashupdate()
+{
+  Serial2.print("soc.val=");
+  Serial2.print(map(SOC, 0, 100, 5, 70));
+  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+  Serial2.write(0xff);
+  Serial2.write(0xff);
+  Serial2.print("n1.val=");
+  Serial2.print("50");
+  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+  Serial2.write(0xff);
+  Serial2.write(0xff);
+  Serial2.print("cur.val=");  
+  Serial2.print(map(abs(currentact), 0, 150000, 360, 90),0);
+  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+  Serial2.write(0xff);
+  Serial2.write(0xff);
+  Serial2.print("n0.val="); 
+  Serial2.print(abs(currentact)/1000,0);
+  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+  Serial2.write(0xff);
+  Serial2.write(0xff);
+  Serial2.print("volt.val=");
+  Serial2.print(bms.getPackVoltage(), 0);
+  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+  Serial2.write(0xff);
+  Serial2.write(0xff);
+  Serial2.print("low.val=");
+  Serial2.print(bms.getLowCellVolt() * 1000, 0);
+  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+  Serial2.write(0xff);
+  Serial2.write(0xff);
+}
+

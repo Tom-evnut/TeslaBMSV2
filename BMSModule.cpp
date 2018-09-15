@@ -92,6 +92,15 @@ uint8_t BMSModule::getCUVCells()
   Tset = 35 + (5 * (buff[9] >> 4));
   } */
 
+void BMSModule::stopBalance()
+{
+  uint8_t payload[4];
+  payload[0] = moduleAddress << 1;
+  payload[1] = REG_BAL_CTRL;
+  payload[2] = 0; //write balance state to register
+  BMSUtil::sendData(payload, 3, true);
+}
+
 bool BMSModule::readModuleValues()
 {
   uint8_t payload[4];
@@ -102,10 +111,7 @@ bool BMSModule::readModuleValues()
   float tempCalc;
   float tempTemp;
   
-  payload[0] = moduleAddress << 1;
-  payload[1] = REG_BAL_CTRL;
-  payload[2] = 0; //write balance state to register
-  BMSUtil::sendData(payload, 3, true);
+
   payload[0] = moduleAddress << 1;
   delay(2);
   

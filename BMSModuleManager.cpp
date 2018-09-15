@@ -300,6 +300,13 @@ void BMSModuleManager::getAllVoltTemp()
   {
     if (modules[x].isExisting())
     {
+      modules[x].stopBalance();
+    }
+  }
+  for (int x = 1; x <= MAX_MODULE_ADDR; x++)
+  {
+    if (modules[x].isExisting())
+    {
       Logger::debug("");
       Logger::debug("Module %i exists. Reading voltage and temperature values", x);
       modules[x].readModuleValues();
@@ -325,23 +332,6 @@ void BMSModuleManager::getAllVoltTemp()
     if (isFaulted) Logger::info("All modules have exited a faulted state");
     isFaulted = false;
   }
-}
-
-float BMSModuleManager::getLowCellVolt()
-{
-  LowCellVolt = 5.0;
-  for (int x = 1; x <= MAX_MODULE_ADDR; x++)
-  {
-    if (modules[x].isExisting())
-    {
-      if (modules[x].getLowCellV() <  LowCellVolt)  LowCellVolt = modules[x].getLowCellV();
-    }
-  }
-  return LowCellVolt;
-}
-
-float BMSModuleManager::getHighCellVolt()
-{
   HighCellVolt = 0.0;
   for (int x = 1; x <= MAX_MODULE_ADDR; x++)
   {
@@ -350,6 +340,23 @@ float BMSModuleManager::getHighCellVolt()
       if (modules[x].getHighCellV() >  HighCellVolt)  HighCellVolt = modules[x].getHighCellV();
     }
   }
+  LowCellVolt = 5.0;
+  for (int x = 1; x <= MAX_MODULE_ADDR; x++)
+  {
+    if (modules[x].isExisting())
+    {
+      if (modules[x].getLowCellV() <  LowCellVolt)  LowCellVolt = modules[x].getLowCellV();
+    }
+  }
+}
+
+float BMSModuleManager::getLowCellVolt()
+{
+  return LowCellVolt;
+}
+
+float BMSModuleManager::getHighCellVolt()
+{
   return HighCellVolt;
 }
 

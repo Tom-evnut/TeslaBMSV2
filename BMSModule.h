@@ -6,6 +6,7 @@ class BMSModule
     BMSModule();
     void readStatus();
     void clearmodule();
+    void stopBalance();
     bool readModuleValues();
     int getscells();
     float getCellVoltage(int cell);
