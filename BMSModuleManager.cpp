@@ -48,52 +48,35 @@ void BMSModuleManager::balanceCells()
   uint8_t buff[30];
   uint8_t balance = 0;//bit 0 - 5 are to activate cell balancing 1-6
 
-  for (int address = 1; address <= MAX_MODULE_ADDR; address++)
+  for (int y = 1; y < 63; y++)
   {
-    if (modules[address].isExisting())
+    if (modules[y].isExisting() == 1)
     {
       balance = 0;
       for (int i = 0; i < 6; i++)
       {
-        if (getLowCellVolt() < modules[address].getCellVoltage(i))
+        if (getLowCellVolt() < modules[y].getCellVoltage(i))
         {
           balance = balance | (1 << i);
+          
         }
       }
-
+        
       if (balance != 0) //only send balance command when needed
       {
-        payload[0] = address << 1;
+        payload[0] = y << 1;
         payload[1] = REG_BAL_TIME;
         payload[2] = 0x05; //5 second balance limit, if not triggered to balance it will stop after 5 seconds
         BMSUtil::sendData(payload, 3, true);
         delay(2);
         BMSUtil::getReply(buff, 30);
 
-        payload[0] = address << 1;
+        payload[0] = y << 1;
         payload[1] = REG_BAL_CTRL;
         payload[2] = balance; //write balance state to register
         BMSUtil::sendData(payload, 3, true);
         delay(2);
         BMSUtil::getReply(buff, 30);
-
-        if (Logger::isDebug()) //read registers back out to check if everthing is good
-        {
-          delay(50);
-          payload[0] = address << 1;
-          payload[1] = REG_BAL_TIME;
-          payload[2] = 1; //
-          BMSUtil::sendData(payload, 3, false);
-          delay(2);
-          BMSUtil::getReply(buff, 30);
-
-          payload[0] = address << 1;
-          payload[1] = REG_BAL_CTRL;
-          payload[2] = 1; //
-          BMSUtil::sendData(payload, 3, false);
-          delay(2);
-          BMSUtil::getReply(buff, 30);
-        }
       }
     }
   }
@@ -181,7 +164,6 @@ void BMSModuleManager::findBoards()
       if (buff[0] == (x << 1) && buff[1] == 0 && buff[2] == 1 && buff[4] > 0) {
         modules[x].setExists(true);
         numFoundModules++;
-        Logger::debug("Found module with address: %X", x);
       }
     }
     delay(5);

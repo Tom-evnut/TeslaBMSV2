@@ -3,9 +3,9 @@
 #include "config.h"
 #include "SerialConsole.h"
 #include "Logger.h"
-#include <ADC.h>
-#include <EEPROM.h>
-#include <FlexCAN.h>
+#include <ADC.h> 
+#include <EEPROM.h> 
+#include <FlexCAN.h> //https://github.com/teachop/FlexCAN_Library 
 #include <SPI.h>
 
 #define CPU_REBOOT (_reboot_Teensyduino_());
@@ -157,8 +157,8 @@ void loadSettings()
   settings.balanceDuty = 50;
   settings.logLevel = 2;
   settings.CAP = 100; //battery size in Ah
-  settings.Pstrings = 2; // strings in parallel used to divide voltage of pack
-  settings.Scells = 14;//Cells in series
+  settings.Pstrings = 1; // strings in parallel used to divide voltage of pack
+  settings.Scells = 12;//Cells in series
   settings.storagedelta = 0.3; //in ESS mode in 1 high changes charge and discharge limits by this amount
   settings.discurrentmax = 300; // max discharge current in 0.1A
   settings.chargecurrentmax = 300; //max charge current in 0.1A
@@ -537,6 +537,7 @@ void loop()
   if (millis() - cleartime > 5000)
   {
     bms.clearmodules();
+    cleartime =millis();
   }
 }
 
