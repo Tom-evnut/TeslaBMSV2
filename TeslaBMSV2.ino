@@ -338,11 +338,13 @@ void loop()
         {
           baltimer = millis() + (10 * settings.balanceDuty);
         }
+        bms.StopBalancing();
       }
     }
     else
     {
       balancecells = 0;
+      bms.StopBalancing();
     }
     if (bms.getLowCellVolt() < settings.UnderVSetpoint)
     {
@@ -394,11 +396,13 @@ void loop()
             {
               baltimer = millis() + (10 * settings.balanceDuty);
             }
+            bms.StopBalancing();
           }
         }
         else
         {
           balancecells = 0;
+          bms.StopBalancing();
         }
         if (digitalRead(IN2) == HIGH && (settings.balanceVoltage + settings.balanceHyst) > bms.getHighCellVolt()) //detect AC present for charging and check not balancing
         {
@@ -447,11 +451,13 @@ void loop()
             {
               baltimer = millis() + (10 * settings.balanceDuty);
             }
+            bms.StopBalancing();
           }
         }
         else
         {
           balancecells = 0;
+          bms.StopBalancing();
         }
         if (bms.getHighCellVolt() > settings.OverVSetpoint);
         {

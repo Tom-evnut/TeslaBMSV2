@@ -275,6 +275,17 @@ void BMSModuleManager::wakeBoards()
   BMSUtil::getReply(buff, 8);
 }
 
+void BMSModuleManager::StopBalancing()
+{
+    for (int x = 1; x <= MAX_MODULE_ADDR; x++)
+  {
+    if (modules[x].isExisting())
+    {
+      modules[x].stopBalance();
+    }
+  }
+}
+
 void BMSModuleManager::getAllVoltTemp()
 {
   packVolt = 0.0f;

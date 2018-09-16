@@ -4,10 +4,11 @@
 
 class BMSModuleManager
 {
-public:
+  public:
     BMSModuleManager();
     int seriescells();
-     void clearmodules();
+    void clearmodules();
+    void StopBalancing();
     void balanceCells();
     void setupBoards();
     void findBoards();
@@ -24,7 +25,7 @@ public:
     void setOverTemp(float newVal);
     void setBalanceV(float newVal);
     void setBalanceHyst(float newVal);
-    void setSensors(int sensor,float Ignore);
+    void setSensors(int sensor, float Ignore);
     float getPackVoltage();
     float getAvgTemperature();
     float getAvgCellVolt();
@@ -33,13 +34,13 @@ public:
     float getHighVoltage();
     float getLowVoltage();
     /*
-    void processCANMsg(CAN_FRAME &frame);
+      void processCANMsg(CAN_FRAME &frame);
     */
     void printPackSummary();
     void printPackDetails();
-    
 
-private:
+
+  private:
     float packVolt;                         // All modules added together
     int Pstring;
     float LowCellVolt;
@@ -54,9 +55,9 @@ private:
     bool isFaulted;
     int spack;
     /*
-    void sendBatterySummary();
-    void sendModuleSummary(int module);
-    void sendCellDetails(int module, int cell);
+      void sendBatterySummary();
+      void sendModuleSummary(int module);
+      void sendCellDetails(int module, int cell);
     */
-    
+
 };
