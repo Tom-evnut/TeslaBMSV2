@@ -42,12 +42,15 @@ int BMSModuleManager::seriescells()
   return spack;
 }
 
-void BMSModuleManager::balanceCells()
+void BMSModuleManager::balanceCells(int duration, int debug)
 {
   uint8_t payload[4];
   uint8_t buff[30];
   uint8_t balance = 0;//bit 0 - 5 are to activate cell balancing 1-6
-
+  if (debug == 1)
+  {
+    Serial.println();
+  }
   for (int y = 1; y < 63; y++)
   {
     if (modules[y].isExisting() == 1)
@@ -58,25 +61,51 @@ void BMSModuleManager::balanceCells()
         if (getLowCellVolt() < modules[y].getCellVoltage(i))
         {
           balance = balance | (1 << i);
-          
+
         }
       }
-        
+      if (debug == 1)
+      {
+        Serial.print(y);
+        Serial.print(" - ");
+        Serial.print(balance, BIN);
+        Serial.print(" | ");
+      }
       if (balance != 0) //only send balance command when needed
       {
         payload[0] = y << 1;
         payload[1] = REG_BAL_TIME;
-        payload[2] = 0x05; //5 second balance limit, if not triggered to balance it will stop after 5 seconds
+        payload[2] = duration; //5 second balance limit, if not triggered to balance it will stop after 5 seconds
         BMSUtil::sendData(payload, 3, true);
         delay(2);
         BMSUtil::getReply(buff, 30);
-
+        if (debug == 1)
+        {
+          for (int z = 0; z < 4; z++)
+          {
+            Serial.print(buff[z], HEX);
+            Serial.print("-");
+          }
+          Serial.print(" | ");
+        }
         payload[0] = y << 1;
         payload[1] = REG_BAL_CTRL;
         payload[2] = balance; //write balance state to register
         BMSUtil::sendData(payload, 3, true);
         delay(2);
         BMSUtil::getReply(buff, 30);
+        if (debug == 1)
+        {
+          for (int z = 0; z < 4; z++)
+          {
+            Serial.print(buff[z], HEX);
+            Serial.print("-");
+          }
+        }
+      }
+      if (debug == 1)
+      {
+        Serial.println();
       }
     }
   }
@@ -277,7 +306,9 @@ void BMSModuleManager::wakeBoards()
 
 void BMSModuleManager::StopBalancing()
 {
-    for (int x = 1; x <= MAX_MODULE_ADDR; x++)
+  Serial.println();
+  Serial.println("BALANCING STOP");
+  for (int x = 1; x <= MAX_MODULE_ADDR; x++)
   {
     if (modules[x].isExisting())
     {
@@ -293,10 +324,9 @@ void BMSModuleManager::getAllVoltTemp()
   {
     if (modules[x].isExisting())
     {
-      modules[x].stopBalance();
+      // modules[x].stopBalance();
     }
   }
-  delay(50);
   for (int x = 1; x <= MAX_MODULE_ADDR; x++)
   {
     if (modules[x].isExisting())

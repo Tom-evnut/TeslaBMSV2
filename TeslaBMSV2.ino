@@ -3,8 +3,8 @@
 #include "config.h"
 #include "SerialConsole.h"
 #include "Logger.h"
-#include <ADC.h> 
-#include <EEPROM.h> 
+#include <ADC.h>
+#include <EEPROM.h>
 #include <FlexCAN.h> //https://github.com/teachop/FlexCAN_Library 
 #include <SPI.h>
 
@@ -327,24 +327,11 @@ void loop()
     }
     if (bms.getHighCellVolt() > settings.balanceVoltage && bms.getHighCellVolt() > bms.getLowCellVolt() + settings.balanceHyst)
     {
-      if (baltimer > millis())
-      {
-        bms.balanceCells();
-        balancecells = 1;
-      }
-      else
-      {
-        if (millis() - baltimer > (10 * (100 - settings.balanceDuty)))
-        {
-          baltimer = millis() + (10 * settings.balanceDuty);
-        }
-        bms.StopBalancing();
-      }
+      balancecells = 1;
     }
     else
     {
       balancecells = 0;
-      bms.StopBalancing();
     }
     if (bms.getLowCellVolt() < settings.UnderVSetpoint)
     {
@@ -385,24 +372,11 @@ void loop()
         Discharge = 0;
         if (bms.getHighCellVolt() > settings.balanceVoltage && bms.getHighCellVolt() > bms.getLowCellVolt() + settings.balanceHyst)
         {
-          if (baltimer > millis())
-          {
-            bms.balanceCells();
-            balancecells = 1;
-          }
-          else
-          {
-            if (millis() - baltimer > (10 * (100 - settings.balanceDuty)))
-            {
-              baltimer = millis() + (10 * settings.balanceDuty);
-            }
-            bms.StopBalancing();
-          }
+          balancecells = 1;
         }
         else
         {
           balancecells = 0;
-          bms.StopBalancing();
         }
         if (digitalRead(IN2) == HIGH && (settings.balanceVoltage + settings.balanceHyst) > bms.getHighCellVolt()) //detect AC present for charging and check not balancing
         {
@@ -440,24 +414,11 @@ void loop()
         digitalWrite(OUT3, HIGH);//enable charger
         if (bms.getHighCellVolt() > settings.balanceVoltage && bms.getHighCellVolt() > bms.getLowCellVolt() + settings.balanceHyst)
         {
-          if (baltimer > millis())
-          {
-            bms.balanceCells();
             balancecells = 1;
-          }
-          else
-          {
-            if (millis() - baltimer > (10 * (100 - settings.balanceDuty)))
-            {
-              baltimer = millis() + (10 * settings.balanceDuty);
-            }
-            bms.StopBalancing();
-          }
         }
         else
         {
           balancecells = 0;
-          bms.StopBalancing();
         }
         if (bms.getHighCellVolt() > settings.OverVSetpoint);
         {
@@ -507,6 +468,8 @@ void loop()
       bmsstatus = Error;
     }
 
+    balancing();
+
     if (debug != 0)
     {
       printbmsstat();
@@ -543,7 +506,7 @@ void loop()
   if (millis() - cleartime > 5000)
   {
     bms.clearmodules();
-    cleartime =millis();
+    cleartime = millis();
   }
 }
 
@@ -1930,5 +1893,24 @@ void dashupdate()
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
+}
+
+void balancing()
+{
+  if (balancecells == 1)
+  {
+    if(debug == 1)
+    {
+      bms.balanceCells(settings.balanceDuty,1);
+    }
+    else
+    {
+      bms.balanceCells(settings.balanceDuty,0);
+    }
+  }
+  else
+  {
+    bms.StopBalancing();
+  }
 }
 

@@ -150,7 +150,7 @@ void SerialConsole::handleShortCmd()
         bms.renumberBoardIDs();
         break;
     case 'B':
-        bms.balanceCells();
+       ///bms.balanceCells();
         break;    
     case 'p':
         if (whichDisplay == 1 && printPrettyDisplay) whichDisplay = 0;

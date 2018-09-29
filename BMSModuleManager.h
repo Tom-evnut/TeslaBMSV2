@@ -9,7 +9,7 @@ class BMSModuleManager
     int seriescells();
     void clearmodules();
     void StopBalancing();
-    void balanceCells();
+    void balanceCells(int duration,int debug);
     void setupBoards();
     void findBoards();
     void renumberBoardIDs();
