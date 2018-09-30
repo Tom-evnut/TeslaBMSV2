@@ -121,7 +121,7 @@ bool BMSModule::readModuleValues()
   Logger::debug("Module %i   alerts=%X   faults=%X   COV=%X   CUV=%X", moduleAddress, alerts, faults, COVFaults, CUVFaults);
 
   payload[1] = REG_ADC_CTRL;
-  payload[2] = 0b00111101; //ADC Auto mode, read every ADC input we can (Both Temps, Pack, 6 cells)
+  payload[2] = 0b01111101; //ADC Auto mode, read every ADC input we can (Both Temps, Pack, 6 cells)
   BMSUtil::sendDataWithReply(payload, 3, true, buff, 3);
 
   payload[1] = REG_IO_CTRL;
