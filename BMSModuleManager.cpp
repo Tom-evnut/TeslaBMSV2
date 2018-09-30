@@ -324,7 +324,7 @@ void BMSModuleManager::getAllVoltTemp()
   {
     if (modules[x].isExisting())
     {
-      //modules[x].stopBalance();
+      modules[x].stopBalance();
     }
   }
   delay(200);

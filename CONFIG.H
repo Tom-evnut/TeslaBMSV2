@@ -13,7 +13,7 @@
 // victron serial VE direct bus config
 #define VE Serial2
 
-#define REG_DEV_STATUS      1
+#define REG_DEV_STATUS      0
 #define REG_GPAI            1
 #define REG_VCELL1          3
 #define REG_VCELL2          5

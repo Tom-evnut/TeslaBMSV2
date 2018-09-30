@@ -287,6 +287,7 @@ void setup()
   ////Calculate fixed numbers
   pwmcurmin = (pwmcurmid / 50 * pwmcurmax * -1);
   ////
+  bms.clearFaults();
 
 }
 
@@ -457,7 +458,6 @@ void loop()
 
   if (millis() - looptime > 500)
   {
-
     looptime = millis();
     bms.getAllVoltTemp();
 

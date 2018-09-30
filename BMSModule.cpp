@@ -41,6 +41,23 @@ void BMSModule::readStatus()
 {
   uint8_t payload[3];
   uint8_t buff[8];
+  /*
+    Serial.println();
+    Serial.print(moduleAddress);
+    Serial.print(" - ");
+  */
+  payload[0] = moduleAddress << 1; //adresss
+  payload[1] = REG_DEV_STATUS;//Alert Status start
+  payload[2] = 0x01;
+  BMSUtil::sendDataWithReply(payload, 3, false, buff, 4);
+  /*
+    for (int z = 0; z < 4; z++)
+    {
+    Serial.print(buff[z], HEX);
+    Serial.print("-");
+    }
+  */
+
   payload[0] = moduleAddress << 1; //adresss
   payload[1] = REG_ALERT_STATUS;//Alert Status start
   payload[2] = 0x04;
@@ -49,6 +66,18 @@ void BMSModule::readStatus()
   faults = buff[4];
   COVFaults = buff[5];
   CUVFaults = buff[6];
+  payload[0] = moduleAddress << 1; //adresss
+  payload[1] = REG_BAL_TIME;//Alert Status start
+  payload[2] = 0x01;
+  BMSUtil::sendDataWithReply(payload, 3, false, buff, 4);
+  /*
+    Serial.print(" | ");
+    for (int z = 0; z < 4; z++)
+    {
+    Serial.print(buff[z], HEX);
+    Serial.print("-");
+    }
+  */
 }
 
 uint8_t BMSModule::getFaults()
@@ -94,11 +123,13 @@ uint8_t BMSModule::getCUVCells()
 
 void BMSModule::stopBalance()
 {
+  uint8_t buff[8];
   uint8_t payload[4];
   payload[0] = moduleAddress << 1;
   payload[1] = REG_BAL_CTRL;
   payload[2] = 0; //write balance state to register
-  BMSUtil::sendData(payload, 3, true);
+  BMSUtil::sendDataWithReply(payload, 3, true, buff, 4);
+  delay(2);
 }
 
 bool BMSModule::readModuleValues()
@@ -110,18 +141,18 @@ bool BMSModule::readModuleValues()
   int retLen;
   float tempCalc;
   float tempTemp;
-  
+
 
   payload[0] = moduleAddress << 1;
   delay(2);
-  
+
   payload[0] = moduleAddress << 1;
 
   readStatus();
   Logger::debug("Module %i   alerts=%X   faults=%X   COV=%X   CUV=%X", moduleAddress, alerts, faults, COVFaults, CUVFaults);
 
   payload[1] = REG_ADC_CTRL;
-  payload[2] = 0b01111101; //ADC Auto mode, read every ADC input we can (Both Temps, Pack, 6 cells)
+  payload[2] = 0b00111101; //ADC Auto mode, read every ADC input we can (Both Temps, Pack, 6 cells)
   BMSUtil::sendDataWithReply(payload, 3, true, buff, 3);
 
   payload[1] = REG_IO_CTRL;
