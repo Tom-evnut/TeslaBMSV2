@@ -1901,7 +1901,7 @@ void balancing()
   {
     if(debug == 1)
     {
-      bms.balanceCells(settings.balanceDuty,1);
+      bms.balanceCells(settings.balanceDuty,0);
     }
     else
     {

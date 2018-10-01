@@ -306,8 +306,6 @@ void BMSModuleManager::wakeBoards()
 
 void BMSModuleManager::StopBalancing()
 {
-  Serial.println();
-  Serial.println("BALANCING STOP");
   for (int x = 1; x <= MAX_MODULE_ADDR; x++)
   {
     if (modules[x].isExisting())
