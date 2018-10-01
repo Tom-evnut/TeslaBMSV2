@@ -415,7 +415,7 @@ void loop()
         digitalWrite(OUT3, HIGH);//enable charger
         if (bms.getHighCellVolt() > settings.balanceVoltage && bms.getHighCellVolt() > bms.getLowCellVolt() + settings.balanceHyst)
         {
-            balancecells = 1;
+          balancecells = 1;
         }
         else
         {
@@ -1531,7 +1531,7 @@ void menu()
   {
     switch (incomingByte)
     {
-      case 'r'://restart
+      case 'R'://restart
         CPU_REBOOT ;
         break;
 
@@ -1657,27 +1657,30 @@ void canread()
     default:
       break;
   }
-  if (candebug == 1)
+  if (debug == 1)
   {
-    Serial.print(millis());
-    if ((inMsg.id & 0x80000000) == 0x80000000)    // Determine if ID is standard (11 bits) or extended (29 bits)
-      sprintf(msgString, "Extended ID: 0x%.8lX  DLC: %1d  Data:", (inMsg.id & 0x1FFFFFFF), inMsg.len);
-    else
-      sprintf(msgString, ",0x%.3lX,false,%1d", inMsg.id, inMsg.len);
+    if (candebug == 1)
+    {
+      Serial.print(millis());
+      if ((inMsg.id & 0x80000000) == 0x80000000)    // Determine if ID is standard (11 bits) or extended (29 bits)
+        sprintf(msgString, "Extended ID: 0x%.8lX  DLC: %1d  Data:", (inMsg.id & 0x1FFFFFFF), inMsg.len);
+      else
+        sprintf(msgString, ",0x%.3lX,false,%1d", inMsg.id, inMsg.len);
 
-    Serial.print(msgString);
-
-    if ((inMsg.id & 0x40000000) == 0x40000000) {  // Determine if message is a remote request frame.
-      sprintf(msgString, " REMOTE REQUEST FRAME");
       Serial.print(msgString);
-    } else {
-      for (byte i = 0; i < inMsg.len; i++) {
-        sprintf(msgString, ", 0x%.2X", inMsg.buf[i]);
-        Serial.print(msgString);
-      }
-    }
 
-    Serial.println();
+      if ((inMsg.id & 0x40000000) == 0x40000000) {  // Determine if message is a remote request frame.
+        sprintf(msgString, " REMOTE REQUEST FRAME");
+        Serial.print(msgString);
+      } else {
+        for (byte i = 0; i < inMsg.len; i++) {
+          sprintf(msgString, ", 0x%.2X", inMsg.buf[i]);
+          Serial.print(msgString);
+        }
+      }
+
+      Serial.println();
+    }
   }
 }
 
@@ -1899,13 +1902,13 @@ void balancing()
 {
   if (balancecells == 1)
   {
-    if(debug == 1)
+    if (debug == 1)
     {
-      bms.balanceCells(settings.balanceDuty,0);
+      bms.balanceCells(settings.balanceDuty, 0);
     }
     else
     {
-      bms.balanceCells(settings.balanceDuty,0);
+      bms.balanceCells(settings.balanceDuty, 0);
     }
   }
   else
