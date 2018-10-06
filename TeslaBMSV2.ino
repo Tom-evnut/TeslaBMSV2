@@ -15,8 +15,6 @@ SerialConsole console;
 EEPROMSettings settings;
 
 
-//Simple BMS Settings//
-int ESSmode = 0; //turn on ESS mode, does not respond to key switching
 
 //Simple BMS V2 wiring//
 const int ACUR2 = A0; // current 1
@@ -59,10 +57,6 @@ int pulltime = 100;
 int contctrl, contstat = 0; //1 = out 5 high 2 = out 6 high 3 = both high
 unsigned long conttimer1, conttimer2, Pretimer = 0;
 uint16_t pwmfreq = 18000;//pwm frequency
-
-int gaugelow = 255; //empty fuel gauge pwm
-int gaugehigh = 70; //full fuel gauge pwm
-
 
 int pwmcurmax = 50;//Max current to be shown with pwm
 int pwmcurmid = 50;//Mid point for pwm dutycycle based on current
@@ -113,6 +107,7 @@ int NextRunningAverage;
 //Variables for SOC calc
 int SOC = 100; //State of Charge
 int SOCset = 0;
+int SOCtest = 0;
 
 
 
@@ -129,6 +124,7 @@ int debug = 1;
 int inputcheck = 0; //read digital inputs
 int outputcheck = 0; //check outputs
 int candebug = 0; //view can frames
+int gaugedebug = 0;
 int debugCur = 0;
 int menuload = 0;
 int balancecells;
@@ -176,6 +172,10 @@ void loadSettings()
   settings.convlow = 100; // mV/A current sensor low range channel
   settings.offset1 = 1750; //mV mid point of channel 1
   settings.offset2 = 1750;//mV mid point of channel 2
+  settings.gaugelow = 50; //empty fuel gauge pwm
+  settings.gaugehigh = 255; //full fuel gauge pwm
+  settings.ESSmode = 0; //activate ESS mode
+
 }
 
 CAN_message_t msg;
@@ -305,7 +305,7 @@ void loop()
   {
     contcon();
   }
-  if (ESSmode == 1)
+  if (settings.ESSmode == 1)
   {
     bmsstatus = Boot;
     if (digitalRead(IN1) == LOW)//Key OFF
@@ -488,6 +488,11 @@ void loop()
     currentlimit();
     VEcan();
 
+    if (settings.ESSmode != 1)
+    {
+      gaugeupdate();
+    }
+
     if (cellspresent == 0)
     {
       cellspresent = bms.seriescells();//set amount of connected cells, might need delay
@@ -534,13 +539,25 @@ void alarmupdate()
 
 void gaugeupdate()
 {
-  analogWrite(OUT8, map(SOC, 0, 100, gaugelow, gaugehigh));
-  if (debug != 0)
+  if (gaugedebug != 0)
   {
+    SOCtest = SOCtest + 5;
+    if (SOCtest > 1000)
+    {
+      SOCtest = 0;
+    }
+    analogWrite(OUT8, map(SOCtest * 0.1, 0, 100, settings.gaugelow, settings.gaugehigh));
+
     SERIALCONSOLE.println("  ");
-    SERIALCONSOLE.print("fuel pwm : ");
-    SERIALCONSOLE.print(map(SOC, 0, 100, gaugelow, gaugehigh));
+    SERIALCONSOLE.print("SOC : ");
+    SERIALCONSOLE.print(SOCtest * 0.1);
+    SERIALCONSOLE.print("  fuel pwm : ");
+    SERIALCONSOLE.print(map(SOCtest * 0.1, 0, 100, settings.gaugelow, settings.gaugehigh));
     SERIALCONSOLE.println("  ");
+  }
+  else
+  {
+    analogWrite(OUT8, map(SOC, 0, 100, settings.gaugelow, settings.gaugehigh));
   }
 }
 
@@ -550,7 +567,7 @@ void printbmsstat()
   SERIALCONSOLE.println();
   SERIALCONSOLE.println();
   SERIALCONSOLE.print("BMS Status : ");
-  if (ESSmode == 1)
+  if (settings.ESSmode == 1)
   {
     SERIALCONSOLE.print("ESS Mode ");
 
@@ -1141,13 +1158,19 @@ void menu()
 
       case '5':
         menuload = 1;
-        ESSmode = !ESSmode;
+        settings.ESSmode = !settings.ESSmode;
         incomingByte = 'd';
         break;
 
       case '6':
         menuload = 1;
         cellspresent = bms.seriescells();
+        incomingByte = 'd';
+        break;
+
+      case '7':
+        menuload = 1;
+        gaugedebug = !gaugedebug;
         incomingByte = 'd';
         break;
 
@@ -1256,6 +1279,28 @@ void menu()
           settings.conthold = Serial.parseInt();
           SERIALCONSOLE.print(settings.conthold );
           SERIALCONSOLE.print(" Contactor Hold PWM");
+          menuload = 1;
+          incomingByte = 'k';
+        }
+        break;
+
+      case '4':
+        if (Serial.available() > 0)
+        {
+          settings.gaugelow = Serial.parseInt();
+          SERIALCONSOLE.print(settings.gaugelow );
+          SERIALCONSOLE.print(" PWM for Gauge Low");
+          menuload = 1;
+          incomingByte = 'k';
+        }
+        break;
+
+      case '5':
+        if (Serial.available() > 0)
+        {
+          settings.gaugehigh = Serial.parseInt();
+          SERIALCONSOLE.print(settings.gaugehigh );
+          SERIALCONSOLE.print(" PWM for Gauge High");
           menuload = 1;
           incomingByte = 'k';
         }
@@ -1541,18 +1586,23 @@ void menu()
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
-        SERIALCONSOLE.println("Contactor Settings Menu");
+        SERIALCONSOLE.println("Contactor and Gauge Settings Menu");
         SERIALCONSOLE.print("1 - PreCharge Timer :");
         SERIALCONSOLE.println(settings.Pretime);
         SERIALCONSOLE.print("2 - PreCharge Finish Current :");
         SERIALCONSOLE.println(settings.Precurrent);
         SERIALCONSOLE.print("3 - PWM contactor Hold 0-255 :");
         SERIALCONSOLE.println(settings.conthold);
+        SERIALCONSOLE.print("4 - PWM for Gauge Low 0-255 :");
+        SERIALCONSOLE.println(settings.gaugelow);
+        SERIALCONSOLE.print("5 - PWM for Gauge High 0-255 :");
+        SERIALCONSOLE.println(settings.gaugehigh);
+
         /*
           SERIALCONSOLE.print("4 - Input Check :");
           SERIALCONSOLE.println(inputcheck);
           SERIALCONSOLE.print("5 - ESS mode :");
-          SERIALCONSOLE.println(ESSmode);
+          SERIALCONSOLE.println(settings.ESSmode);
           SERIALCONSOLE.print("6 - Cells Present Reset :");
           SERIALCONSOLE.println(cellspresent);
           SERIALCONSOLE.println("q - Go back to menu");
@@ -1582,9 +1632,11 @@ void menu()
         SERIALCONSOLE.print("4 - Input Check :");
         SERIALCONSOLE.println(inputcheck);
         SERIALCONSOLE.print("5 - ESS mode :");
-        SERIALCONSOLE.println(ESSmode);
+        SERIALCONSOLE.println(settings.ESSmode);
         SERIALCONSOLE.print("6 - Cells Present Reset :");
         SERIALCONSOLE.println(cellspresent);
+        SERIALCONSOLE.print("7 - Gauge Debug :");
+        SERIALCONSOLE.println(gaugedebug);
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 4;
         break;
@@ -1635,7 +1687,7 @@ void menu()
     SERIALCONSOLE.println("Debugging Paused");
     SERIALCONSOLE.println("b - Battery Settings");
     SERIALCONSOLE.println("c - Current Sensor Calibration");
-    SERIALCONSOLE.println("k - Contactor Settings");
+    SERIALCONSOLE.println("k - Contactor and Gauge Settings");
     SERIALCONSOLE.println("d - Debug Settings");
     SERIALCONSOLE.println("R - Restart BMS");
     SERIALCONSOLE.println("q - exit menu");

@@ -75,4 +75,7 @@ typedef struct {
   uint16_t offset1;
   uint16_t offset2;
   int balanceDuty;
+  int ESSmode;
+  int gaugelow;
+  int gaugehigh;
 } EEPROMSettings;
