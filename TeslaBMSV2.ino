@@ -334,7 +334,7 @@ void loop()
     {
       balancecells = 0;
     }
-    if (bms.getLowCellVolt() < settings.UnderVSetpoint)
+    if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getLowCellVolt() <settings.DischVsetpoint)
     {
       digitalWrite(OUT1, LOW);//turn off discharge
       contctrl = contctrl & 2;
@@ -345,7 +345,7 @@ void loop()
       contctrl = contctrl | 1;
     }
 
-    if (bms.getHighCellVolt() > settings.OverVSetpoint)
+    if (bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.ChargeVsetpoint)
     {
       digitalWrite(OUT3, LOW);//turn off charger
       contctrl = contctrl & 1;
