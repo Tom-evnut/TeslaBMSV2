@@ -313,7 +313,7 @@ void loop()
       if (storagemode == 1)
       {
         settings.ChargeVsetpoint += settings.storagedelta;
-        settings.DischVsetpoint -= settings.storagedelta;
+        //settings.DischVsetpoint -= settings.storagedelta;
         storagemode = 0;
       }
     }
@@ -322,7 +322,7 @@ void loop()
       if (storagemode == 0)
       {
         settings.ChargeVsetpoint -= settings.storagedelta;
-        settings.DischVsetpoint += settings.storagedelta;
+        //settings.DischVsetpoint += settings.storagedelta;
         storagemode = 1;
       }
     }
