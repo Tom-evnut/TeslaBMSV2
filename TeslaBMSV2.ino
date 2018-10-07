@@ -334,7 +334,7 @@ void loop()
     {
       balancecells = 0;
     }
-    if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getLowCellVolt() <settings.DischVsetpoint)
+    if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getLowCellVolt() < settings.DischVsetpoint)
     {
       digitalWrite(OUT1, LOW);//turn off discharge
       contctrl = contctrl & 2;
@@ -883,31 +883,39 @@ void contcon()
 
     if ((contctrl & 1) == 1)
     {
-      if (conttimer1 == 0)
+      if ((contstat & 1) != 1)
       {
-        analogWrite(OUT5, 255);
-        conttimer1 = millis() + pulltime ;
-      }
-      if (conttimer1 < millis())
-      {
-        analogWrite(OUT5, settings.conthold);
-        contstat = contstat | 1;
-        conttimer1 = 0;
+        if (conttimer1 == 0)
+        {
+          analogWrite(OUT5, 255);
+          conttimer1 = millis() + pulltime ;
+        }
+        if (conttimer1 < millis())
+        {
+          analogWrite(OUT5, settings.conthold);
+          contstat = contstat | 1;
+          conttimer1 = 0;
+        }
       }
     }
 
     if ((contctrl & 2) == 2)
     {
-      if (conttimer2 == 0)
+      if ((contstat & 2) != 2)
       {
-        analogWrite(OUT6, 255);
-        conttimer2 = millis() + pulltime ;
-      }
-      if (conttimer2 < millis())
-      {
-        analogWrite(OUT6, settings.conthold);
-        contstat = contstat | 2;
-        conttimer2 = 0;
+        if (conttimer2 == 0)
+        {
+          Serial.println();
+          Serial.println("pull in OUT6");
+          analogWrite(OUT6, 255);
+          conttimer2 = millis() + pulltime ;
+        }
+        if (conttimer2 < millis())
+        {
+          analogWrite(OUT6, settings.conthold);
+          contstat = contstat | 2;
+          conttimer2 = 0;
+        }
       }
     }
     /*
