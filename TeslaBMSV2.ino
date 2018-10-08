@@ -330,6 +330,32 @@ void loop()
     {
       balancecells = 0;
     }
+    if (storagemode == 1)
+    {
+      if (bms.getLowCellVolt() > settings.StoreVsetpoint)
+      {
+        digitalWrite(OUT3, LOW);//turn off charger
+        contctrl = contctrl & 1;
+      }
+      else
+      {
+        digitalWrite(OUT3, HIGH);//turn on charger
+        contctrl = contctrl | 2;
+      }
+    }
+    else
+    {
+      if (bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.ChargeVsetpoint)
+      {
+        digitalWrite(OUT3, LOW);//turn off charger
+        contctrl = contctrl & 1;
+      }
+      else
+      {
+        digitalWrite(OUT3, HIGH);//turn on charger
+        contctrl = contctrl | 2;
+      }
+    }
     if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getLowCellVolt() < settings.DischVsetpoint)
     {
       digitalWrite(OUT1, LOW);//turn off discharge
@@ -341,16 +367,6 @@ void loop()
       contctrl = contctrl | 1;
     }
 
-    if (bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.ChargeVsetpoint)
-    {
-      digitalWrite(OUT3, LOW);//turn off charger
-      contctrl = contctrl & 1;
-    }
-    else
-    {
-      digitalWrite(OUT3, HIGH);//turn on charger
-      contctrl = contctrl | 2;
-    }
     pwmcomms();
   }
   else
@@ -1404,7 +1420,7 @@ void menu()
         SERIALCONSOLE.print(settings.socvolt[3] );
         SERIALCONSOLE.print(" SOC setpoint 2 - j");
         SERIALCONSOLE.println("  ");
-        SERIALCONSOLE.print(settings.StoreVsetpoint*1000,0 );
+        SERIALCONSOLE.print(settings.StoreVsetpoint * 1000, 0 );
         SERIALCONSOLE.print(" mV Storage Setpoint- k");
         SERIALCONSOLE.println("  ");
 
