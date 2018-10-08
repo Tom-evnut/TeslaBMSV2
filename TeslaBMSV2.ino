@@ -592,16 +592,31 @@ void printbmsstat()
     {
       SERIALCONSOLE.print(": OverVoltage ");
     }
-    if (bms.getLowCellVolt() > settings.UnderVSetpoint && bms.getHighCellVolt() < settings.OverVSetpoint)
+    if (storagemode == 1)
     {
-
-      if ( bmsstatus == Error)
+      if (bms.getLowCellVolt() > settings.StoreVsetpoint)
       {
+        SERIALCONSOLE.print(": OverVoltage Storage ");
         SERIALCONSOLE.print(": UNhappy:");
       }
       else
       {
         SERIALCONSOLE.print(": Happy ");
+      }
+    }
+    else
+    {
+      if (bms.getLowCellVolt() > settings.UnderVSetpoint && bms.getHighCellVolt() < settings.OverVSetpoint)
+      {
+
+        if ( bmsstatus == Error)
+        {
+          SERIALCONSOLE.print(": UNhappy:");
+        }
+        else
+        {
+          SERIALCONSOLE.print(": Happy ");
+        }
       }
     }
   }
