@@ -155,7 +155,7 @@ void loadSettings()
   settings.CAP = 100; //battery size in Ah
   settings.Pstrings = 1; // strings in parallel used to divide voltage of pack
   settings.Scells = 12;//Cells in series
-  settings.StoreVsetpoint = 4.3; //in ESS mode in 1 high changes charge and discharge limits by this amount
+  settings.StoreVsetpoint = 3.8; // V storage mode charge max
   settings.discurrentmax = 300; // max discharge current in 0.1A
   settings.chargecurrentmax = 300; //max charge current in 0.1A
   settings.socvolt[0] = 3100; //Voltage and SOC curve for voltage based SOC calc
@@ -1404,7 +1404,7 @@ void menu()
         SERIALCONSOLE.print(settings.socvolt[3] );
         SERIALCONSOLE.print(" SOC setpoint 2 - j");
         SERIALCONSOLE.println("  ");
-        SERIALCONSOLE.print(settings.StoreVsetpoint );
+        SERIALCONSOLE.print(settings.StoreVsetpoint*1000,0 );
         SERIALCONSOLE.print(" mV Storage Setpoint- k");
         SERIALCONSOLE.println("  ");
 
