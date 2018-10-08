@@ -49,6 +49,7 @@ typedef struct {
   float UnderVSetpoint;
   float ChargeVsetpoint;
   float DischVsetpoint;
+  float StoreVsetpoint;
   float OverTSetpoint;
   float UnderTSetpoint;
   float ChargeTSetpoint;
@@ -57,7 +58,6 @@ typedef struct {
   float IgnoreVolt;
   float balanceVoltage;
   float balanceHyst;
-  float storagedelta;
   int Scells;
   int Pstrings;
   int CAP;

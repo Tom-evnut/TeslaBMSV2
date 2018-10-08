@@ -155,7 +155,7 @@ void loadSettings()
   settings.CAP = 100; //battery size in Ah
   settings.Pstrings = 1; // strings in parallel used to divide voltage of pack
   settings.Scells = 12;//Cells in series
-  settings.storagedelta = 0.3; //in ESS mode in 1 high changes charge and discharge limits by this amount
+  settings.StoreVsetpoint = 4.3; //in ESS mode in 1 high changes charge and discharge limits by this amount
   settings.discurrentmax = 300; // max discharge current in 0.1A
   settings.chargecurrentmax = 300; //max charge current in 0.1A
   settings.socvolt[0] = 3100; //Voltage and SOC curve for voltage based SOC calc
@@ -312,8 +312,6 @@ void loop()
     {
       if (storagemode == 1)
       {
-        settings.ChargeVsetpoint += settings.storagedelta;
-        //settings.DischVsetpoint -= settings.storagedelta;
         storagemode = 0;
       }
     }
@@ -321,8 +319,6 @@ void loop()
     {
       if (storagemode == 0)
       {
-        settings.ChargeVsetpoint -= settings.storagedelta;
-        //settings.DischVsetpoint += settings.storagedelta;
         storagemode = 1;
       }
     }
@@ -359,6 +355,7 @@ void loop()
   }
   else
   {
+    storagemode = 0;
     switch (bmsstatus)
     {
       case (Boot):
@@ -973,8 +970,16 @@ void VEcan() //communication with Victron system over CAN
 {
   msg.id  = 0x351;
   msg.len = 8;
-  msg.buf[0] = lowByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
-  msg.buf[1] = highByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
+  if (storagemode == 0)
+  {
+    msg.buf[0] = lowByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
+    msg.buf[1] = highByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
+  }
+  else
+  {
+    msg.buf[0] = lowByte(uint16_t((settings.StoreVsetpoint * settings.Scells ) * 10));
+    msg.buf[1] = highByte(uint16_t((settings.StoreVsetpoint * settings.Scells ) * 10));
+  }
   msg.buf[2] = lowByte(chargecurrent);
   msg.buf[3] = highByte(chargecurrent);
   msg.buf[4] = lowByte(discurrent );
@@ -1399,8 +1404,8 @@ void menu()
         SERIALCONSOLE.print(settings.socvolt[3] );
         SERIALCONSOLE.print(" SOC setpoint 2 - j");
         SERIALCONSOLE.println("  ");
-        SERIALCONSOLE.print(settings.balanceDuty );
-        SERIALCONSOLE.print(" % Balancing - k");
+        SERIALCONSOLE.print(settings.StoreVsetpoint );
+        SERIALCONSOLE.print(" mV Storage Setpoint- k");
         SERIALCONSOLE.println("  ");
 
         break;
@@ -1423,9 +1428,10 @@ void menu()
       case 'k':
         if (Serial.available() > 0)
         {
-          settings.balanceDuty = Serial.parseInt();
-          SERIALCONSOLE.print(settings.balanceDuty);
-          SERIALCONSOLE.print(" % Balance Duty Cycle");
+          settings.StoreVsetpoint = Serial.parseInt();
+          settings.StoreVsetpoint = settings.StoreVsetpoint / 1000;
+          SERIALCONSOLE.print(settings.StoreVsetpoint * 1000, 0);
+          SERIALCONSOLE.print(" mV Storage Setpoint");
         }
 
       case 'g':
@@ -1815,6 +1821,14 @@ void currentlimit()
         }
       }
     }
+  }
+  if (bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.ChargeVsetpoint)
+  {
+    chargecurrent = 0;
+  }
+  if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getLowCellVolt() < settings.DischVsetpoint)
+  {
+    discurrent = 0;
   }
 }
 
