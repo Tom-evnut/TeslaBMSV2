@@ -118,6 +118,7 @@ int x = 0;
 int storagemode = 0;
 int cellspresent = 0;
 int dashused = 1;
+int charged = 0;
 
 //Debugging modes//////////////////
 int debug = 1;
@@ -141,6 +142,7 @@ void loadSettings()
   settings.OverVSetpoint = 4.2f;
   settings.UnderVSetpoint = 3.0f;
   settings.ChargeVsetpoint = 4.1f;
+  settings.ChargeHys = 0.2; // voltage drop required for charger to kick back on
   settings.DischVsetpoint = 3.2f;
   settings.OverTSetpoint = 65.0f;
   settings.UnderTSetpoint = -10.0f;
@@ -332,15 +334,18 @@ void loop()
     }
     if (storagemode == 1)
     {
-      if (bms.getLowCellVolt() > settings.StoreVsetpoint)
+      if (bms.getHighCellVolt() > settings.StoreVsetpoint)
       {
         digitalWrite(OUT3, LOW);//turn off charger
         contctrl = contctrl & 1;
       }
       else
       {
-        digitalWrite(OUT3, HIGH);//turn on charger
-        contctrl = contctrl | 2;
+        if (bms.getLowCellVolt() < (settings.StoreVsetpoint - settings.ChargeHys))
+        {
+          digitalWrite(OUT3, HIGH);//turn on charger
+          contctrl = contctrl | 2;
+        }
       }
     }
     else
@@ -352,8 +357,11 @@ void loop()
       }
       else
       {
-        digitalWrite(OUT3, HIGH);//turn on charger
-        contctrl = contctrl | 2;
+        if (bms.getLowCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))
+        {
+          digitalWrite(OUT3, HIGH);//turn on charger
+          contctrl = contctrl | 2;
+        }
       }
     }
     if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getLowCellVolt() < settings.DischVsetpoint)
@@ -1438,12 +1446,28 @@ void menu()
         SERIALCONSOLE.print(settings.StoreVsetpoint * 1000, 0 );
         SERIALCONSOLE.print(" mV Storage Setpoint- k");
         SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.print(settings.ChargeHys * 1000, 0 );
+        SERIALCONSOLE.print(" mV Charge Hystersis - l");
+        SERIALCONSOLE.println("  ");
+
+
 
         break;
       case 101: //e dispaly settings
         SERIALCONSOLE.println("  ");
         SERIALCONSOLE.println("Enter Variable Number and New value ");
         SERIALCONSOLE.println("  ");
+        break;
+
+
+      case 'l': //1 Over Voltage Setpoint
+        if (Serial.available() > 0)
+        {
+          settings.ChargeHys = Serial.parseInt();
+          settings.ChargeHys = settings.ChargeHys / 1000;
+          SERIALCONSOLE.print(settings.ChargeHys * 1000, 0);
+          SERIALCONSOLE.print("mV Charge Hystersis");
+        }
         break;
 
       case 49: //1 Over Voltage Setpoint
@@ -1818,6 +1842,7 @@ void currentlimit()
   }
   else
   {
+    ///////////temperature based current limit////////////
     if (bms.getAvgTemperature() < settings.UnderTSetpoint)
     {
       discurrent = 0;
@@ -1853,6 +1878,12 @@ void currentlimit()
       }
     }
   }
+  ///voltage influence on current///
+  if (bms.getHighCellVolt() > (settings.ChargeVsetpoint - settings.ChargeHys))
+  {
+    chargecurrent = map(bms.getHighCellVolt(), (settings.ChargeVsetpoint - settings.ChargeHys), settings.ChargeVsetpoint, settings.chargecurrentmax, 0);
+  }
+
   if (bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.ChargeVsetpoint)
   {
     chargecurrent = 0;

@@ -49,6 +49,7 @@ typedef struct {
   float UnderVSetpoint;
   float ChargeVsetpoint;
   float DischVsetpoint;
+  float ChargeHys;
   float StoreVsetpoint;
   float OverTSetpoint;
   float UnderTSetpoint;
