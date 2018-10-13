@@ -1058,10 +1058,10 @@ void VEcan() //communication with Victron system over CAN
   msg.buf[1] = alarm[1]; // High Discharge Current | Low Temperature
   msg.buf[2] = alarm[2]; //Internal Failure | High Charge current
   msg.buf[3] = alarm[3];// Cell Imbalance
-  msg.buf[4] = 0;
-  msg.buf[5] = 0;
-  msg.buf[6] = 0;
-  msg.buf[7] = 0;
+  msg.buf[4] = 0x00;//High temp  Low Voltage | High Voltage
+  msg.buf[5] = 0x00;// High Discharge Current | Low Temperature
+  msg.buf[6] = 0x00;//Internal Failure | High Charge current
+  msg.buf[7] = 0x00;// Cell Imbalance
   Can0.write(msg);
 
   msg.id  = 0x35E;
@@ -1087,6 +1087,19 @@ void VEcan() //communication with Victron system over CAN
   msg.buf[5] = bmsmanu[5];
   msg.buf[6] = bmsmanu[6];
   msg.buf[7] = bmsmanu[7];
+  Can0.write(msg);
+
+    delay(2);
+  msg.id  = 0x35F;
+  msg.len = 8;
+  msg.buf[0] = 0x00;
+  msg.buf[1] = 0x00;
+  msg.buf[2] = 0x02;///firmware high
+  msg.buf[3] = 0x01;///firmware low
+  msg.buf[4] = lowByte(settings.CAP);
+  msg.buf[5] = highByte(settings.CAP);
+  msg.buf[6] = 0x99;
+  msg.buf[7] = 0x01;
   Can0.write(msg);
 }
 
