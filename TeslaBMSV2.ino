@@ -2002,177 +2002,191 @@ void currentlimit()
     }
   }
   ///voltage influence on current///
-  if (bms.getHighCellVolt() > (settings.ChargeVsetpoint - settings.ChargeHys))
+  if (storagemode == 1)
   {
-    chargecurrent = map(bms.getHighCellVolt(), (settings.ChargeVsetpoint - settings.ChargeHys), settings.ChargeVsetpoint, settings.chargecurrentmax, 0);
+    if (bms.getHighCellVolt() > (settings.StoreVsetpoint - settings.ChargeHys))
+    {
+      chargecurrent = map(bms.getHighCellVolt(), (settings.StoreVsetpoint - settings.ChargeHys), settings.StoreVsetpoint, settings.chargecurrentmax, 0);
+    }
+    if (bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.StoreVsetpoint)
+    {
+      chargecurrent = 0;
+    }
+  }
+  else
+  {
+    if (bms.getHighCellVolt() > (settings.ChargeVsetpoint - settings.ChargeHys))
+    {
+      chargecurrent = map(bms.getHighCellVolt(), (settings.ChargeVsetpoint - settings.ChargeHys), settings.ChargeVsetpoint, settings.chargecurrentmax, 0);
+    }
+    if (bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.ChargeVsetpoint)
+    {
+      chargecurrent = 0;
+    }
   }
 
-  if (bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.ChargeVsetpoint)
-  {
-    chargecurrent = 0;
-  }
   if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getLowCellVolt() < settings.DischVsetpoint)
   {
     discurrent = 0;
+
   }
 }
-
-void inputdebug()
-{
-  Serial.println();
-  Serial.print("Input: ");
-  if (digitalRead(IN1))
+  void inputdebug()
   {
-    Serial.print("1 ON  ");
-  }
-  else
-  {
-    Serial.print("1 OFF ");
-  }
-  if (digitalRead(IN2))
-  {
-    Serial.print("2 ON  ");
-  }
-  else
-  {
-    Serial.print("2 OFF ");
-  }
-  if (digitalRead(IN3))
-  {
-    Serial.print("3 ON  ");
-  }
-  else
-  {
-    Serial.print("3 OFF ");
-  }
-  if (digitalRead(IN4))
-  {
-    Serial.print("4 ON  ");
-  }
-  else
-  {
-    Serial.print("4 OFF ");
-  }
-  Serial.println();
-}
-
-void outputdebug()
-{
-  if (outputstate < 5)
-  {
-    digitalWrite(OUT1, HIGH);
-    digitalWrite(OUT2, HIGH);
-    digitalWrite(OUT3, HIGH);
-    digitalWrite(OUT4, HIGH);
-    digitalWrite(OUT5, HIGH);
-    digitalWrite(OUT6, HIGH);
-    digitalWrite(OUT7, HIGH);
-    digitalWrite(OUT8, HIGH);
-    outputstate ++;
-  }
-  else
-  {
-    digitalWrite(OUT1, LOW);
-    digitalWrite(OUT2, LOW);
-    digitalWrite(OUT3, LOW);
-    digitalWrite(OUT4, LOW);
-    digitalWrite(OUT5, LOW);
-    digitalWrite(OUT6, LOW);
-    digitalWrite(OUT7, LOW);
-    digitalWrite(OUT8, LOW);
-    outputstate ++;
-  }
-  if (outputstate > 10)
-  {
-    outputstate = 0;
-  }
-}
-
-void resetwdog()
-{
-  noInterrupts();                                     //   No - reset WDT
-  WDOG_REFRESH = 0xA602;
-  WDOG_REFRESH = 0xB480;
-  interrupts();
-}
-
-void pwmcomms()
-{
-  int p = 0;
-  p = map((currentact * 0.001), pwmcurmin, pwmcurmax, 50 , 255);
-  analogWrite(OUT7, p);
-  /*
     Serial.println();
-      Serial.print(p*100/255);
-      Serial.print(" OUT8 ");
-  */
-
-  if (bms.getLowCellVolt() < settings.UnderVSetpoint)
-  {
-    analogWrite(OUT7, 255); //12V to 10V converter 1.5V
-  }
-  else
-  {
-    p = map(SOC, 0, 100, 220, 50);
-    analogWrite(OUT8, p); //2V to 10V converter 1.5-10V
-  }
-  /*
-      Serial.println();
-      Serial.print(p);
-      Serial.print(" OUT7 ");
-  */
-}
-
-void dashupdate()
-{
-  Serial2.print("soc.val=");
-  Serial2.print(map(SOC, 0, 100, 5, 70));
-  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
-  Serial2.write(0xff);
-  Serial2.write(0xff);
-  Serial2.print("n1.val=");
-  Serial2.print("50");
-  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
-  Serial2.write(0xff);
-  Serial2.write(0xff);
-  Serial2.print("cur.val=");
-  Serial2.print(map(abs(currentact), 0, 150000, 360, 90), 0);
-  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
-  Serial2.write(0xff);
-  Serial2.write(0xff);
-  Serial2.print("n0.val=");
-  Serial2.print(abs(currentact) / 1000, 0);
-  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
-  Serial2.write(0xff);
-  Serial2.write(0xff);
-  Serial2.print("volt.val=");
-  Serial2.print(bms.getPackVoltage(), 0);
-  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
-  Serial2.write(0xff);
-  Serial2.write(0xff);
-  Serial2.print("low.val=");
-  Serial2.print(bms.getLowCellVolt() * 1000, 0);
-  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
-  Serial2.write(0xff);
-  Serial2.write(0xff);
-}
-
-void balancing()
-{
-  if (balancecells == 1)
-  {
-    if (debug == 1)
+    Serial.print("Input: ");
+    if (digitalRead(IN1))
     {
-      bms.balanceCells(settings.balanceDuty, 0);
+      Serial.print("1 ON  ");
     }
     else
     {
-      bms.balanceCells(settings.balanceDuty, 0);
+      Serial.print("1 OFF ");
+    }
+    if (digitalRead(IN2))
+    {
+      Serial.print("2 ON  ");
+    }
+    else
+    {
+      Serial.print("2 OFF ");
+    }
+    if (digitalRead(IN3))
+    {
+      Serial.print("3 ON  ");
+    }
+    else
+    {
+      Serial.print("3 OFF ");
+    }
+    if (digitalRead(IN4))
+    {
+      Serial.print("4 ON  ");
+    }
+    else
+    {
+      Serial.print("4 OFF ");
+    }
+    Serial.println();
+  }
+
+  void outputdebug()
+  {
+    if (outputstate < 5)
+    {
+      digitalWrite(OUT1, HIGH);
+      digitalWrite(OUT2, HIGH);
+      digitalWrite(OUT3, HIGH);
+      digitalWrite(OUT4, HIGH);
+      digitalWrite(OUT5, HIGH);
+      digitalWrite(OUT6, HIGH);
+      digitalWrite(OUT7, HIGH);
+      digitalWrite(OUT8, HIGH);
+      outputstate ++;
+    }
+    else
+    {
+      digitalWrite(OUT1, LOW);
+      digitalWrite(OUT2, LOW);
+      digitalWrite(OUT3, LOW);
+      digitalWrite(OUT4, LOW);
+      digitalWrite(OUT5, LOW);
+      digitalWrite(OUT6, LOW);
+      digitalWrite(OUT7, LOW);
+      digitalWrite(OUT8, LOW);
+      outputstate ++;
+    }
+    if (outputstate > 10)
+    {
+      outputstate = 0;
     }
   }
-  else
+
+  void resetwdog()
   {
-    bms.StopBalancing();
+    noInterrupts();                                     //   No - reset WDT
+    WDOG_REFRESH = 0xA602;
+    WDOG_REFRESH = 0xB480;
+    interrupts();
   }
-}
+
+  void pwmcomms()
+  {
+    int p = 0;
+    p = map((currentact * 0.001), pwmcurmin, pwmcurmax, 50 , 255);
+    analogWrite(OUT7, p);
+    /*
+      Serial.println();
+        Serial.print(p*100/255);
+        Serial.print(" OUT8 ");
+    */
+
+    if (bms.getLowCellVolt() < settings.UnderVSetpoint)
+    {
+      analogWrite(OUT7, 255); //12V to 10V converter 1.5V
+    }
+    else
+    {
+      p = map(SOC, 0, 100, 220, 50);
+      analogWrite(OUT8, p); //2V to 10V converter 1.5-10V
+    }
+    /*
+        Serial.println();
+        Serial.print(p);
+        Serial.print(" OUT7 ");
+    */
+  }
+
+  void dashupdate()
+  {
+    Serial2.print("soc.val=");
+    Serial2.print(map(SOC, 0, 100, 5, 70));
+    Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+    Serial2.write(0xff);
+    Serial2.write(0xff);
+    Serial2.print("n1.val=");
+    Serial2.print("50");
+    Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+    Serial2.write(0xff);
+    Serial2.write(0xff);
+    Serial2.print("cur.val=");
+    Serial2.print(map(abs(currentact), 0, 150000, 360, 90), 0);
+    Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+    Serial2.write(0xff);
+    Serial2.write(0xff);
+    Serial2.print("n0.val=");
+    Serial2.print(abs(currentact) / 1000, 0);
+    Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+    Serial2.write(0xff);
+    Serial2.write(0xff);
+    Serial2.print("volt.val=");
+    Serial2.print(bms.getPackVoltage(), 0);
+    Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+    Serial2.write(0xff);
+    Serial2.write(0xff);
+    Serial2.print("low.val=");
+    Serial2.print(bms.getLowCellVolt() * 1000, 0);
+    Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+    Serial2.write(0xff);
+    Serial2.write(0xff);
+  }
+
+  void balancing()
+  {
+    if (balancecells == 1)
+    {
+      if (debug == 1)
+      {
+        bms.balanceCells(settings.balanceDuty, 0);
+      }
+      else
+      {
+        bms.balanceCells(settings.balanceDuty, 0);
+      }
+    }
+    else
+    {
+      bms.StopBalancing();
+    }
+  }
 
