@@ -66,6 +66,7 @@ typedef struct {
   int Pstrings;
   int CAP;
   int chargecurrentmax;
+  int chargecurrentend;
   int discurrentmax ;
   int socvolt[4];
   int invertcur;

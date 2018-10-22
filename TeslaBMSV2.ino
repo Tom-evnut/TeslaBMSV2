@@ -164,6 +164,7 @@ void loadSettings()
   settings.StoreVsetpoint = 3.8; // V storage mode charge max
   settings.discurrentmax = 300; // max discharge current in 0.1A
   settings.chargecurrentmax = 300; //max charge current in 0.1A
+  settings.chargecurrentend = 50; //max charge current in 0.1A
   settings.socvolt[0] = 3100; //Voltage and SOC curve for voltage based SOC calc
   settings.socvolt[1] = 10; //Voltage and SOC curve for voltage based SOC calc
   settings.socvolt[2] = 4100; //Voltage and SOC curve for voltage based SOC calc
@@ -1476,6 +1477,11 @@ void menu()
         loadSettings();
         SERIALCONSOLE.println("  ");
         SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.println(" Coded Settings Loaded ");
+        SERIALCONSOLE.println("  ");
+        menuload = 3;
+        incomingByte = 'd';
         break;
 
       case 114: //r for reset
@@ -1511,6 +1517,9 @@ void menu()
         SERIALCONSOLE.println("  ");
         SERIALCONSOLE.print(settings.chargecurrentmax * 0.1);
         SERIALCONSOLE.print("A max Charge - 8 ");
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.print(settings.chargecurrentend * 0.1);
+        SERIALCONSOLE.print("A end Charge - m ");
         SERIALCONSOLE.println("  ");
         SERIALCONSOLE.print(settings.discurrentmax * 0.1);
         SERIALCONSOLE.print("A max Discharge - 9 ");
@@ -1717,12 +1726,20 @@ void menu()
           SERIALCONSOLE.print("Ah Battery Capacity");
         }
         break;
+      case 'm'://8 chargecurrent A
+        if (Serial.available() > 0)
+        {
+          settings.chargecurrentend = Serial.parseInt() * 10;
+          SERIALCONSOLE.print(settings.chargecurrentend * 0.1);
+          SERIALCONSOLE.print(" A end Charge");
+        }
+        break;
       case 56://8 chargecurrent A
         if (Serial.available() > 0)
         {
           settings.chargecurrentmax = Serial.parseInt() * 10;
           SERIALCONSOLE.print(settings.chargecurrentmax * 0.1);
-          SERIALCONSOLE.print("A max Charge");
+          SERIALCONSOLE.print(" A max Charge");
         }
         break;
       case 57://9 discurrent in A
@@ -1859,6 +1876,7 @@ void menu()
         SERIALCONSOLE.println("r - Reset AH counter");
         SERIALCONSOLE.println("d - Display settings");
         SERIALCONSOLE.println("e - Edit settings");
+        SERIALCONSOLE.println("f - Reset to Coded Settings");
         SERIALCONSOLE.println("q - Go back to menu");
         SERIALCONSOLE.println();
         menuload = 3;
@@ -2006,7 +2024,7 @@ void currentlimit()
   {
     if (bms.getHighCellVolt() > (settings.StoreVsetpoint - settings.ChargeHys))
     {
-      chargecurrent = map(bms.getHighCellVolt(), (settings.StoreVsetpoint - settings.ChargeHys), settings.StoreVsetpoint, settings.chargecurrentmax, 0);
+      chargecurrent = map(bms.getHighCellVolt(), (settings.StoreVsetpoint - settings.ChargeHys), settings.StoreVsetpoint, settings.chargecurrentmax, settings.chargecurrentend);
     }
     if (bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.StoreVsetpoint)
     {
@@ -2017,7 +2035,7 @@ void currentlimit()
   {
     if (bms.getHighCellVolt() > (settings.ChargeVsetpoint - settings.ChargeHys))
     {
-      chargecurrent = map(bms.getHighCellVolt(), (settings.ChargeVsetpoint - settings.ChargeHys), settings.ChargeVsetpoint, settings.chargecurrentmax, 0);
+      chargecurrent = map(bms.getHighCellVolt(), (settings.ChargeVsetpoint - settings.ChargeHys), settings.ChargeVsetpoint, settings.chargecurrentmax, settings.chargecurrentend);
     }
     if (bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.ChargeVsetpoint)
     {
