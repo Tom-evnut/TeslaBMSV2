@@ -4,7 +4,7 @@
 #include "SerialConsole.h"
 #include "Logger.h"
 #include <ADC.h> //https://github.com/pedvide/ADC
-#include <EEPROM.h>
+#include <EEPROM.h> 
 #include <FlexCAN.h> //https://github.com/teachop/FlexCAN_Library 
 #include <SPI.h>
 
@@ -164,7 +164,7 @@ void loadSettings()
   settings.StoreVsetpoint = 3.8; // V storage mode charge max
   settings.discurrentmax = 300; // max discharge current in 0.1A
   settings.chargecurrentmax = 300; //max charge current in 0.1A
-  settings.chargecurrentend = 50; //max charge current in 0.1A
+  settings.chargecurrentend = 50; //end charge current in 0.1A
   settings.socvolt[0] = 3100; //Voltage and SOC curve for voltage based SOC calc
   settings.socvolt[1] = 10; //Voltage and SOC curve for voltage based SOC calc
   settings.socvolt[2] = 4100; //Voltage and SOC curve for voltage based SOC calc
@@ -346,7 +346,7 @@ void loop()
       }
       else
       {
-        if (bms.getLowCellVolt() < (settings.StoreVsetpoint - settings.ChargeHys))
+        if (bms.getHighCellVolt() < (settings.StoreVsetpoint - settings.ChargeHys))
         {
           digitalWrite(OUT3, HIGH);//turn on charger
           contctrl = contctrl | 2;
@@ -362,7 +362,7 @@ void loop()
       }
       else
       {
-        if (bms.getLowCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))
+        if (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))
         {
           digitalWrite(OUT3, HIGH);//turn on charger
           contctrl = contctrl | 2;
