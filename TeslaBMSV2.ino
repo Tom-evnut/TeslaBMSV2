@@ -188,6 +188,7 @@ void loadSettings()
   settings.gaugelow = 50; //empty fuel gauge pwm
   settings.gaugehigh = 255; //full fuel gauge pwm
   settings.ESSmode = 0; //activate ESS mode
+  settings.ncur = 1; //number of multiples to use for current measurement
 
 }
 
@@ -815,7 +816,7 @@ void getcurrent()
   {
     RawCur = RawCur * -1;
   }
-  RunningAverageBuffer[NextRunningAverage++] = RawCur;
+  RunningAverageBuffer[NextRunningAverage++] = RawCur * settings.ncur;
   if (NextRunningAverage >= RunningAverageCount)
   {
     NextRunningAverage = 0;
@@ -1361,6 +1362,16 @@ void menu()
         settings.voltsoc = !settings.voltsoc;
         incomingByte = 'c';
         break;
+
+      case '3':
+        menuload = 1;
+        if (Serial.available() > 0)
+        {
+          settings.ncur = Serial.parseInt();
+        }
+        incomingByte = 'c';
+        break;
+
 
       case 113: //q for quite menu
 
@@ -1974,6 +1985,8 @@ void menu()
         SERIALCONSOLE.println(settings.invertcur);
         SERIALCONSOLE.print("2 - Pure Voltage based SOC :");
         SERIALCONSOLE.println(settings.voltsoc);
+        SERIALCONSOLE.print("3 - Current Multiplication :");
+        SERIALCONSOLE.println(settings.ncur);
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 2;
         break;
@@ -2355,8 +2368,8 @@ void chargercomms()
     msg.buf[1] = lowByte(maxac2 * 10);
     msg.buf[1] = highByte(maxac2 * 10);
   }
-  msg.buf[3] = lowByte(chargecurrent/3);
-  msg.buf[4] = highByte(chargecurrent/3);
+  msg.buf[3] = lowByte(chargecurrent / 3);
+  msg.buf[4] = highByte(chargecurrent / 3);
   msg.buf[5] = lowByte(uint16_t(((settings.ChargeVsetpoint * settings.Scells ) - chargerend) * 10));
   msg.buf[6] = highByte(uint16_t(((settings.ChargeVsetpoint * settings.Scells ) - chargerend)  * 10));
   Can0.write(msg);
@@ -2376,8 +2389,8 @@ void chargercomms()
     msg.buf[1] = lowByte(maxac2 * 10);
     msg.buf[1] = highByte(maxac2 * 10);
   }
-  msg.buf[3] = lowByte(chargecurrent/3);
-  msg.buf[4] = highByte(chargecurrent/3);
+  msg.buf[3] = lowByte(chargecurrent / 3);
+  msg.buf[4] = highByte(chargecurrent / 3);
   msg.buf[5] = lowByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
   msg.buf[6] = highByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
   Can0.write(msg);
