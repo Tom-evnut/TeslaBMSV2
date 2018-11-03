@@ -414,8 +414,7 @@ void loop()
     //pwmcomms();
   }
   else
-  {
-    storagemode = 0;
+   {
     switch (bmsstatus)
     {
       case (Boot):
@@ -430,13 +429,14 @@ void loop()
         Discharge = 0;
         if (bms.getHighCellVolt() > settings.balanceVoltage && bms.getHighCellVolt() > bms.getLowCellVolt() + settings.balanceHyst)
         {
+          //bms.balanceCells();
           balancecells = 1;
         }
         else
         {
           balancecells = 0;
         }
-        if (digitalRead(IN3) == HIGH && (settings.balanceVoltage + settings.balanceHyst) > bms.getHighCellVolt()) //detect AC present for charging and check not balancing
+        if (digitalRead(IN3) == HIGH && (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))) //detect AC present for charging and check not balancing
         {
           bmsstatus = Charge;
         }
@@ -470,15 +470,16 @@ void loop()
       case (Charge):
         Discharge = 0;
         digitalWrite(OUT3, HIGH);//enable charger
-        if (bms.getHighCellVolt() > settings.balanceVoltage && bms.getHighCellVolt() > bms.getLowCellVolt() + settings.balanceHyst)
+        if (bms.getHighCellVolt() > settings.balanceVoltage)
         {
+          //bms.balanceCells();
           balancecells = 1;
         }
         else
         {
           balancecells = 0;
         }
-        if (bms.getHighCellVolt() > settings.OverVSetpoint);
+        if (bms.getHighCellVolt() > settings.ChargeVsetpoint)
         {
           digitalWrite(OUT3, LOW);//turn off charger
           bmsstatus = Ready;
