@@ -96,7 +96,7 @@ int value;
 float currentact, RawCur;
 float ampsecond;
 unsigned long lasttime;
-unsigned long looptime, cleartime, baltimer = 0; //ms
+unsigned long looptime, looptime1, cleartime, baltimer = 0; //ms
 int currentsense = 14;
 int sensor = 1;
 
@@ -117,6 +117,7 @@ int maxac2 = 10; //Generator Charging
 int chargerid1 = 0x618; //bulk chargers
 int chargerid2 = 0x638; //finishing charger
 float chargerend = 10.0; //turning off the bulk charger before end voltage
+int chargerspd = 100; //ms per message
 
 //variables
 int outputstate = 0;
@@ -410,11 +411,10 @@ void loop()
         contctrl = contctrl | 1;
       }
     }
-    chargercomms();
     //pwmcomms();
   }
   else
-   {
+  {
     switch (bmsstatus)
     {
       case (Boot):
@@ -570,6 +570,11 @@ void loop()
   {
     bms.clearmodules();
     cleartime = millis();
+  }
+  if (millis() - looptime1 > chargerspd)
+  {
+    looptime1 = millis();
+    chargercomms();
   }
 }
 
@@ -2336,67 +2341,60 @@ void balancing()
   }
 }
 
-/*
-  int maxac1 = 16; //Shore power 16A per charger
-  int maxac2 = 10; //Generator Charging
-  int chargerid1 = 0x618; //bulk chargers
-  int chargerid2 = 0x638; //finishing charger
-  float chargerend = 10.0; //turning off the bulk charger before end voltage
-
-  BO_ 1560 NLG5_CTL: 7 Control
-  SG_ NLG5_C_MR : 4|1@0+ (1,0) [0|1] ""  NLG5
-  SG_ NLG5_OV_COM : 31|16@0+ (0.1,0) [0|1000] "V"  NLG5
-  SG_ NLG5_MC_MAX : 15|16@0+ (0.1,0) [0|50] "A"  NLG5
-  SG_ NLG5_C_C_EN : 7|1@0+ (1,0) [0|1] ""  NLG5
-  SG_ NLG5_OC_COM : 47|16@0+ (0.1,0) [0|150] "A"  NLG5
-  SG_ NLG5_C_CP_V : 5|1@0+ (1,0) [0|1] ""  NLG5
-  SG_ NLG5_C_C_EL : 6|1@0+ (1,0) [0|1] ""  NLG5
-
-*/
 
 void chargercomms()
 {
   msg.id  = chargerid1;
   msg.len = 7;
-  msg.buf[0] = 0x20;
+  msg.buf[0] = 0x80;
+  /*
+    if (chargertoggle == 0)
+    {
+    msg.buf[0] = 0x80;
+    chargertoggle++;
+    }
+    else
+    {
+    msg.buf[0] = 0xC0;
+    chargertoggle = 0;
+    }
+  */
   if (digitalRead(IN2) == LOW)//Gen OFF
   {
-    msg.buf[1] = lowByte(maxac1 * 10);
-    msg.buf[2] = highByte(maxac1 * 10);
+    msg.buf[1] = highByte(maxac1 * 10);
+    msg.buf[2] = lowByte(maxac1 * 10);
   }
   else
   {
-    msg.buf[1] = lowByte(maxac2 * 10);
     msg.buf[1] = highByte(maxac2 * 10);
+    msg.buf[2] = lowByte(maxac2 * 10);
   }
-  msg.buf[3] = lowByte(chargecurrent / 3);
-  msg.buf[4] = highByte(chargecurrent / 3);
-  msg.buf[5] = lowByte(uint16_t(((settings.ChargeVsetpoint * settings.Scells ) - chargerend) * 10));
-  msg.buf[6] = highByte(uint16_t(((settings.ChargeVsetpoint * settings.Scells ) - chargerend)  * 10));
+  msg.buf[5] = highByte(chargecurrent / 3);
+  msg.buf[6] = lowByte(chargecurrent / 3);
+  msg.buf[3] = highByte(uint16_t(((settings.ChargeVsetpoint * settings.Scells ) - chargerend) * 10));
+  msg.buf[4] = lowByte(uint16_t(((settings.ChargeVsetpoint * settings.Scells ) - chargerend)  * 10));
   Can0.write(msg);
 
   delay(2);
 
   msg.id  = chargerid2;
   msg.len = 7;
-  msg.buf[0] = 0x20;
+  msg.buf[0] = 0x80;
   if (digitalRead(IN2) == LOW)//Gen OFF
   {
-    msg.buf[1] = lowByte(maxac1 * 10);
-    msg.buf[2] = highByte(maxac1 * 10);
+    msg.buf[1] = highByte(maxac1 * 10);
+    msg.buf[2] = lowByte(maxac1 * 10);
   }
   else
   {
-    msg.buf[1] = lowByte(maxac2 * 10);
     msg.buf[1] = highByte(maxac2 * 10);
+    msg.buf[2] = lowByte(maxac2 * 10);
   }
-  msg.buf[3] = lowByte(chargecurrent / 3);
-  msg.buf[4] = highByte(chargecurrent / 3);
-  msg.buf[5] = lowByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
-  msg.buf[6] = highByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
+  msg.buf[3] = highByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
+  msg.buf[4] = lowByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
+  msg.buf[5] = highByte(chargecurrent / 3);
+  msg.buf[6] = lowByte(chargecurrent / 3);
   Can0.write(msg);
-
-
 }
 
 
