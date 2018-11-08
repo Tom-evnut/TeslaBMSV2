@@ -7,6 +7,8 @@
 #include <EEPROM.h>
 #include <FlexCAN.h> //https://github.com/teachop/FlexCAN_Library 
 #include <SPI.h>
+#include <Filters.h>
+
 
 #define CPU_REBOOT (_reboot_Teensyduino_());
 
@@ -14,7 +16,9 @@ BMSModuleManager bms;
 SerialConsole console;
 EEPROMSettings settings;
 
-
+//Curent filter test//
+float filterFrequency = 5.0 ;
+FilterOnePole lowpassFilter( LOWPASS, filterFrequency );
 
 //Simple BMS V2 wiring//
 const int ACUR2 = A0; // current 1
@@ -99,11 +103,6 @@ unsigned long lasttime;
 unsigned long looptime, looptime1, cleartime, baltimer = 0; //ms
 int currentsense = 14;
 int sensor = 1;
-
-//running average
-const int RunningAverageCount = 20;
-float RunningAverageBuffer[RunningAverageCount];
-int NextRunningAverage;
 
 //Variables for SOC calc
 int SOC = 100; //State of Charge
@@ -826,19 +825,14 @@ void getcurrent()
   {
     RawCur = RawCur * -1;
   }
-  RunningAverageBuffer[NextRunningAverage++] = RawCur * settings.ncur;
-  if (NextRunningAverage >= RunningAverageCount)
-  {
-    NextRunningAverage = 0;
-  }
-  float RunningAverageCur = 0;
-  for (int i = 0; i < RunningAverageCount; ++i)
-  {
-    RunningAverageCur += RunningAverageBuffer[i];
-  }
-  RunningAverageCur /= RunningAverageCount;
 
-  currentact = RunningAverageCur;
+  lowpassFilter.input(RawCur);
+  if (debugCur != 0)
+  {
+    SERIALCONSOLE.print(lowpassFilter.output());
+  }
+
+  currentact = lowpassFilter.output();
 
   if ( settings.cursens == Analogue)
   {
@@ -2015,10 +2009,10 @@ void menu()
         SERIALCONSOLE.print("3 - Current Multiplication :");
         SERIALCONSOLE.println(settings.ncur);
         SERIALCONSOLE.print("4 - Analogue Low Range Conv:");
-        SERIALCONSOLE.print(settings.convlow*0.1,1);
+        SERIALCONSOLE.print(settings.convlow * 0.1, 1);
         SERIALCONSOLE.println(" mV/A");
         SERIALCONSOLE.print("5 - Analogue High Range Conv:");
-        SERIALCONSOLE.print(settings.convhigh*0.1,1);
+        SERIALCONSOLE.print(settings.convhigh * 0.1, 1);
         SERIALCONSOLE.println(" mV/A");
 
         SERIALCONSOLE.println("q - Go back to menu");
