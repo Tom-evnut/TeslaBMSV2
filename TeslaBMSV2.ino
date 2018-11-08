@@ -7,7 +7,7 @@
 #include <EEPROM.h>
 #include <FlexCAN.h> //https://github.com/teachop/FlexCAN_Library 
 #include <SPI.h>
-#include <Filters.h>
+#include <Filters.h>//https://github.com/JonHub/Filters
 
 
 #define CPU_REBOOT (_reboot_Teensyduino_());
@@ -16,7 +16,7 @@ BMSModuleManager bms;
 SerialConsole console;
 EEPROMSettings settings;
 
-//Curent filter test//
+//Curent filter//
 float filterFrequency = 5.0 ;
 FilterOnePole lowpassFilter( LOWPASS, filterFrequency );
 
