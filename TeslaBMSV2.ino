@@ -118,6 +118,7 @@ int chargerid1 = 0x618; //bulk chargers
 int chargerid2 = 0x638; //finishing charger
 float chargerend = 10.0; //turning off the bulk charger before end voltage
 int chargerspd = 100; //ms per message
+int ncharger = 1; // number of chargers
 
 //variables
 int outputstate = 0;
@@ -183,7 +184,7 @@ void loadSettings()
   settings.conthold = 50; //holding duty cycle for contactor 0-255
   settings.Precurrent = 1000; //ma before closing main contator
   settings.convhigh = 4; // mV/A current sensor high range channel
-  settings.convlow = 100; // mV/A current sensor low range channel
+  settings.convlow = 64; // mV/A current sensor low range channel
   settings.offset1 = 1750; //mV mid point of channel 1
   settings.offset2 = 1750;//mV mid point of channel 2
   settings.gaugelow = 50; //empty fuel gauge pwm
@@ -231,7 +232,7 @@ void setup()
   adc->setAveraging(16); // set number of averages
   adc->setResolution(16); // set bits of resolution
   adc->setConversionSpeed(ADC_CONVERSION_SPEED::HIGH_SPEED);
-  adc->setSamplingSpeed(ADC_SAMPLING_SPEED::MED_SPEED);
+  adc->setSamplingSpeed(ADC_SAMPLING_SPEED::LOW_SPEED);
   adc->startContinuous(ACUR1, ADC_0);
 
 
@@ -771,10 +772,10 @@ void getcurrent()
       if (debugCur != 0)
       {
         SERIALCONSOLE.print(value * 3300 / adc->getMaxValue(ADC_0)); //- settings.offset1)
-        SERIALCONSOLE.print("  ");
+        SERIALCONSOLE.print(" ");
         SERIALCONSOLE.print(settings.offset1);
       }
-      RawCur = (float(value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset1) / (settings.convlow * 0.00066);
+      RawCur = int16_t((value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset1) / (settings.convlow * 0.001);
 
       if (value < 100 || value > (adc->getMaxValue(ADC_0) - 100))
       {
@@ -782,10 +783,11 @@ void getcurrent()
       }
       if (debugCur != 0)
       {
-
+        SERIALCONSOLE.print("  ");
+        SERIALCONSOLE.print(int16_t(value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset1);
         SERIALCONSOLE.print("  ");
         SERIALCONSOLE.print(RawCur);
-        SERIALCONSOLE.print("mA");
+        SERIALCONSOLE.print(" mA");
         SERIALCONSOLE.print("  ");
       }
     }
@@ -804,13 +806,15 @@ void getcurrent()
         SERIALCONSOLE.print("  ");
         SERIALCONSOLE.print(settings.offset2);
       }
-      RawCur = (float(value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset2) / (settings.convhigh * 0.00066);
+      RawCur = int16_t((value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset2) / (settings.convhigh * 0.001);
       if (value < 100 || value > (adc->getMaxValue(ADC_0) - 100))
       {
         RawCur = 0;
       }
       if (debugCur != 0)
       {
+        SERIALCONSOLE.print("  ");
+        SERIALCONSOLE.print((float(value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset2));
         SERIALCONSOLE.print("  ");
         SERIALCONSOLE.print(RawCur);
         SERIALCONSOLE.print("mA");
@@ -1378,6 +1382,23 @@ void menu()
         incomingByte = 'c';
         break;
 
+      case '4':
+        menuload = 1;
+        if (Serial.available() > 0)
+        {
+          settings.convlow = Serial.parseInt();
+        }
+        incomingByte = 'c';
+        break;
+
+      case '5':
+        menuload = 1;
+        if (Serial.available() > 0)
+        {
+          settings.convhigh = Serial.parseInt();
+        }
+        incomingByte = 'c';
+        break;
 
       case 113: //q for quite menu
 
@@ -1993,6 +2014,13 @@ void menu()
         SERIALCONSOLE.println(settings.voltsoc);
         SERIALCONSOLE.print("3 - Current Multiplication :");
         SERIALCONSOLE.println(settings.ncur);
+        SERIALCONSOLE.print("4 - Analogue Low Range Conv:");
+        SERIALCONSOLE.print(settings.convlow);
+        SERIALCONSOLE.println(" mV/A");
+        SERIALCONSOLE.print("5 - Analogue High Range Conv:");
+        SERIALCONSOLE.print(settings.convhigh);
+        SERIALCONSOLE.println(" mV/A");
+
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 2;
         break;
@@ -2369,8 +2397,8 @@ void chargercomms()
     msg.buf[1] = highByte(maxac2 * 10);
     msg.buf[2] = lowByte(maxac2 * 10);
   }
-  msg.buf[5] = highByte(chargecurrent / 3);
-  msg.buf[6] = lowByte(chargecurrent / 3);
+  msg.buf[5] = highByte(chargecurrent / ncharger);
+  msg.buf[6] = lowByte(chargecurrent / ncharger);
   msg.buf[3] = highByte(uint16_t(((settings.ChargeVsetpoint * settings.Scells ) - chargerend) * 10));
   msg.buf[4] = lowByte(uint16_t(((settings.ChargeVsetpoint * settings.Scells ) - chargerend)  * 10));
   Can0.write(msg);
@@ -2392,8 +2420,8 @@ void chargercomms()
   }
   msg.buf[3] = highByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
   msg.buf[4] = lowByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
-  msg.buf[5] = highByte(chargecurrent / 3);
-  msg.buf[6] = lowByte(chargecurrent / 3);
+  msg.buf[5] = highByte(chargecurrent / ncharger);
+  msg.buf[6] = lowByte(chargecurrent / ncharger);
   Can0.write(msg);
 }
 
