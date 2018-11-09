@@ -84,4 +84,6 @@ typedef struct {
   int gaugelow;
   int gaugehigh;
   int ncur;
+  int chargertype;
+  int chargerspd;
 } EEPROMSettings;
