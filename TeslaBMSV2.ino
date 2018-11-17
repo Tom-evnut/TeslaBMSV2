@@ -16,6 +16,9 @@ BMSModuleManager bms;
 SerialConsole console;
 EEPROMSettings settings;
 
+/////Version Identifier/////////
+int firmver = 181117;
+
 //Curent filter//
 float filterFrequency = 5.0 ;
 FilterOnePole lowpassFilter( LOWPASS, filterFrequency );
@@ -49,8 +52,10 @@ byte bmsstatus = 0;
 //
 //Current sensor values
 #define Undefined 0
-#define Analogue 1
+#define Analoguedual 1
 #define Canbus 2
+#define Analoguesing 3
+
 //
 //Charger Types
 #define NoCharger 0
@@ -516,7 +521,7 @@ void loop()
         break;
     }
   }
-  if ( settings.cursens == Analogue)
+  if ( settings.cursens == Analoguedual || settings.cursens == Analoguesing)
   {
     getcurrent();
   }
@@ -764,24 +769,39 @@ void printbmsstat()
 
 void getcurrent()
 {
-  if ( settings.cursens == Analogue)
+  if ( settings.cursens == Analoguedual || settings.cursens == Analoguesing)
   {
-    if (currentact < 19000 && currentact > -19000)
+    if ( settings.cursens == Analoguedual)
     {
-      sensor = 1;
-      adc->startContinuous(ACUR1, ADC_0);
+      if (currentact < 19000 && currentact > -19000)
+      {
+        sensor = 1;
+        adc->startContinuous(ACUR1, ADC_0);
+      }
+      else
+      {
+        sensor = 2;
+        adc->startContinuous(ACUR2, ADC_0);
+      }
     }
     else
     {
-      sensor = 2;
-      adc->startContinuous(ACUR2, ADC_0);
+      sensor = 1;
+      adc->startContinuous(ACUR1, ADC_0);
     }
     if (sensor == 1)
     {
       if (debugCur != 0)
       {
         SERIALCONSOLE.println();
-        SERIALCONSOLE.print("Low Range: ");
+        if ( settings.cursens == Analoguedual)
+        {
+          SERIALCONSOLE.print("Low Range: ");
+        }
+        else
+        {
+          SERIALCONSOLE.print("Single In: ");
+        }
         SERIALCONSOLE.print("Value ADC0: ");
       }
       value = (uint16_t)adc->analogReadContinuous(ADC_0); // the unsigned is necessary for 16 bits, otherwise values larger than 3.3/2 V are negative!
@@ -851,7 +871,7 @@ void getcurrent()
 
   currentact = lowpassFilter.output();
 
-  if ( settings.cursens == Analogue)
+  if ( settings.cursens == Analoguedual)
   {
     if (sensor == 1)
     {
@@ -931,7 +951,7 @@ void updateSOC()
 
   if (debug != 0)
   {
-    if ( settings.cursens == Analogue)
+       if (settings.cursens == Analoguedual)
     {
       if (sensor == 1)
       {
@@ -942,7 +962,11 @@ void updateSOC()
         SERIALCONSOLE.print("High Range");
       }
     }
-    else
+        if (settings.cursens == Analoguesing)
+    {
+      SERIALCONSOLE.print("Analogue Single ");
+    }
+    if (settings.cursens == Canbus)
     {
       SERIALCONSOLE.print("CANbus ");
     }
@@ -1390,6 +1414,7 @@ void menu()
         {
           settings.ncur = Serial.parseInt();
         }
+        menuload = 1;
         incomingByte = 'c';
         break;
 
@@ -1418,20 +1443,29 @@ void menu()
         break;
 
       case 115: //s for switch sensor
-        if (settings.cursens == Analogue)
+        settings.cursens ++;
+        if (settings.cursens > 3)
         {
-          settings.cursens = Canbus;
-          SERIALCONSOLE.println("  ");
-          SERIALCONSOLE.print(" CANbus Current Sensor ");
-          SERIALCONSOLE.println("  ");
+          settings.cursens = 0;
         }
-        else
-        {
-          settings.cursens = Analogue;
-          SERIALCONSOLE.println("  ");
-          SERIALCONSOLE.print(" Analogue Current Sensor ");
-          SERIALCONSOLE.println("  ");
-        }
+        /*
+          if (settings.cursens == Analoguedual)
+          {
+            settings.cursens = Canbus;
+            SERIALCONSOLE.println("  ");
+            SERIALCONSOLE.print(" CANbus Current Sensor ");
+            SERIALCONSOLE.println("  ");
+          }
+          else
+          {
+            settings.cursens = Analoguedual;
+            SERIALCONSOLE.println("  ");
+            SERIALCONSOLE.print(" Analogue Current Sensor ");
+            SERIALCONSOLE.println("  ");
+          }
+        */
+        menuload = 1;
+        incomingByte = 'c';
         break;
 
 
@@ -1988,19 +2022,40 @@ void menu()
         SERIALCONSOLE.println();
         SERIALCONSOLE.println("Current Sensor Calibration Menu");
         SERIALCONSOLE.println("c - To calibrate sensor offset");
-        SERIALCONSOLE.println("s - To switch between Current Sensors");
+        SERIALCONSOLE.print("s - Current Sensor Type : ");
+        switch (settings.cursens)
+        {
+          case Analoguedual:
+            SERIALCONSOLE.println(" Analogue Dual Current Sensor ");
+            break;
+          case Analoguesing:
+            SERIALCONSOLE.println(" Analogue Single Current Sensor ");
+            break;
+          case Canbus:
+            SERIALCONSOLE.println(" Canbus Current Sensor ");
+            break;
+          default:
+            SERIALCONSOLE.println("Undefined");
+            break;
+        }
         SERIALCONSOLE.print("1 - invert current :");
         SERIALCONSOLE.println(settings.invertcur);
         SERIALCONSOLE.print("2 - Pure Voltage based SOC :");
         SERIALCONSOLE.println(settings.voltsoc);
         SERIALCONSOLE.print("3 - Current Multiplication :");
         SERIALCONSOLE.println(settings.ncur);
-        SERIALCONSOLE.print("4 - Analogue Low Range Conv:");
-        SERIALCONSOLE.print(settings.convlow * 0.1, 1);
-        SERIALCONSOLE.println(" mV/A");
-        SERIALCONSOLE.print("5 - Analogue High Range Conv:");
-        SERIALCONSOLE.print(settings.convhigh * 0.1, 1);
-        SERIALCONSOLE.println(" mV/A");
+        if (settings.cursens == Analoguesing || settings.cursens == Analoguedual)
+        {
+          SERIALCONSOLE.print("4 - Analogue Low Range Conv:");
+          SERIALCONSOLE.print(settings.convlow * 0.1, 1);
+          SERIALCONSOLE.println(" mV/A");
+        }
+        if ( settings.cursens == Analoguedual)
+        {
+          SERIALCONSOLE.print("5 - Analogue High Range Conv:");
+          SERIALCONSOLE.print(settings.convhigh * 0.1, 1);
+          SERIALCONSOLE.println(" mV/A");
+        }
 
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 2;
@@ -2097,6 +2152,8 @@ void menu()
     SERIALCONSOLE.println();
     SERIALCONSOLE.println("MENU");
     SERIALCONSOLE.println("Debugging Paused");
+    SERIALCONSOLE.print("Firmware Version : ");
+    SERIALCONSOLE.println(firmver);
     SERIALCONSOLE.println("b - Battery Settings");
     SERIALCONSOLE.println("a - Alarm and Warning Settings");
     SERIALCONSOLE.println("e - Charging Settings");
