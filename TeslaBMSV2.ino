@@ -1555,7 +1555,7 @@ void menu()
         break;
 
 
-      case '3':
+      case '4':
         if (Serial.available() > 0)
         {
           settings.chargecurrentend = Serial.parseInt() * 10;
@@ -1565,7 +1565,7 @@ void menu()
         break;
 
 
-      case '4':
+      case '3':
         if (Serial.available() > 0)
         {
           settings.chargecurrentmax = Serial.parseInt() * 10;
