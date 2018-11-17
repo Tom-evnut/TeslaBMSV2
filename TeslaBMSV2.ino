@@ -1939,7 +1939,7 @@ void menu()
         SERIALCONSOLE.println("mS");
         SERIALCONSOLE.print("2 - PreCharge Finish Current: ");
         SERIALCONSOLE.print(settings.Precurrent);
-        SERIALCONSOLE.println("A");
+        SERIALCONSOLE.println(" mA");
         SERIALCONSOLE.print("3 - PWM contactor Hold 0-255 :");
         SERIALCONSOLE.println(settings.conthold);
         SERIALCONSOLE.print("4 - PWM for Gauge Low 0-255 :");
