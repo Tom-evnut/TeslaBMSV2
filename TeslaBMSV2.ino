@@ -17,7 +17,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 181117;
+int firmver = 271117;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -235,7 +235,7 @@ void setup()
   analogWriteFrequency(OUT7, pwmfreq);
   analogWriteFrequency(OUT8, pwmfreq);
 
-  Can0.begin(500000);
+  Can0.begin(settings.canSpeed);
 
   //if using enable pins on a transceiver they need to be set on
 
@@ -951,7 +951,7 @@ void updateSOC()
 
   if (debug != 0)
   {
-       if (settings.cursens == Analoguedual)
+    if (settings.cursens == Analoguedual)
     {
       if (sensor == 1)
       {
@@ -962,7 +962,7 @@ void updateSOC()
         SERIALCONSOLE.print("High Range");
       }
     }
-        if (settings.cursens == Analoguesing)
+    if (settings.cursens == Analoguesing)
     {
       SERIALCONSOLE.print("Analogue Single ");
     }
@@ -1610,7 +1610,7 @@ void menu()
 
       case '5': //1 Over Voltage Setpoint
         settings.chargertype = settings.chargertype + 1;
-        if (settings.chargertype > 3)
+        if (settings.chargertype > 4)
         {
           settings.chargertype = 0;
         }
@@ -1627,6 +1627,15 @@ void menu()
         }
         break;
 
+      case '7':
+        if (Serial.available() > 0)
+        {
+          settings.canSpeed = Serial.parseInt() * 1000;
+          Can0.begin(settings.canSpeed);
+          menuload = 1;
+          incomingByte = 'e';
+        }
+        break;
     }
   }
 
@@ -1932,11 +1941,17 @@ void menu()
           case 3:
             SERIALCONSOLE.print("Eltek Charger");
             break;
+          case 4:
+            SERIALCONSOLE.print("Elcon Charger");
+            break;
         }
         SERIALCONSOLE.println();
         SERIALCONSOLE.print("6- Charger Can Msg Spd: ");
         SERIALCONSOLE.print(settings.chargerspd);
         SERIALCONSOLE.println("mS");
+        SERIALCONSOLE.print("7- Can Speed:");
+        SERIALCONSOLE.print(settings.canSpeed/1000);
+        SERIALCONSOLE.println("kbps");
         SERIALCONSOLE.println();
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 6;
@@ -2471,17 +2486,17 @@ void balancing()
 
 void chargercomms()
 {
-   if (settings.chargertype == Eltek)
+  if (settings.chargertype == Eltek)
   {
     msg.id  = 0x2FF; //broadcast to all Elteks
     msg.len = 7;
     msg.buf[0] = 0x01;
-    msg.buf[1] = highByte(chargecurrent / ncharger);
-    msg.buf[2] = lowByte(chargecurrent / ncharger);
-    msg.buf[3] = highByte(uint16_t(settings.ChargeVsetpoint * settings.Scells * 10));
-    msg.buf[4] = lowByte(uint16_t(settings.ChargeVsetpoint * settings.Scells * 10));
-    msg.buf[5] = highByte(1000);
-    msg.buf[6] = lowByte(1000);
+    msg.buf[1] = lowByte(1000);
+    msg.buf[2] = highByte(1000);
+    msg.buf[3] = lowByte(uint16_t(settings.ChargeVsetpoint * settings.Scells * 10));
+    msg.buf[4] = highByte(uint16_t(settings.ChargeVsetpoint * settings.Scells * 10));
+    msg.buf[5] = lowByte(chargecurrent / ncharger);
+    msg.buf[6] = highByte(chargecurrent / ncharger);
     Can0.write(msg);
   }
   if (settings.chargertype == BrusaNLG5)
