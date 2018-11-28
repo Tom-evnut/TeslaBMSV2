@@ -62,6 +62,7 @@ byte bmsstatus = 0;
 #define BrusaNLG5 1
 #define ChevyVolt 2
 #define Eltek 3
+#define Elcon 4
 //
 
 
@@ -2478,6 +2479,24 @@ void balancing()
 
 void chargercomms()
 {
+  if (settings.chargertype == Elcon)
+  {
+    msg.id  =  0x1806E5F4; //broadcast to all Elteks
+    msg.len = 8;
+    msg.ext = 1;
+    msg.buf[0] = highByte(uint16_t(settings.ChargeVsetpoint * settings.Scells * 10));
+    msg.buf[1] = lowByte(uint16_t(settings.ChargeVsetpoint * settings.Scells * 10));
+    msg.buf[2] = highByte(chargecurrent / ncharger);
+    msg.buf[3] = lowByte(chargecurrent / ncharger);
+    msg.buf[4] = 0x01;
+    msg.buf[5] = 0x00;
+    msg.buf[6] = 0x00;
+    msg.buf[7] = 0x00;
+
+    Can0.write(msg);
+    msg.ext = 0;
+  }
+
   if (settings.chargertype == Eltek)
   {
     msg.id  = 0x2FF; //broadcast to all Elteks
@@ -2489,6 +2508,7 @@ void chargercomms()
     msg.buf[4] = highByte(uint16_t(settings.ChargeVsetpoint * settings.Scells * 10));
     msg.buf[5] = lowByte(chargecurrent / ncharger);
     msg.buf[6] = highByte(chargecurrent / ncharger);
+
     Can0.write(msg);
   }
   if (settings.chargertype == BrusaNLG5)
@@ -2576,5 +2596,3 @@ void chargercomms()
     Can0.write(msg);
   }
 }
-
-
