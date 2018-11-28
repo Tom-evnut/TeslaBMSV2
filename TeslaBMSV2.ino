@@ -692,6 +692,18 @@ void printbmsstat()
     {
       SERIALCONSOLE.print(": OverVoltage ");
     }
+    if ((bms.getHighCellVolt() - bms.getLowCellVolt()) > settings.CellGap)
+    {
+      SERIALCONSOLE.print(": Cell Imbalance ");
+    }
+    if (bms.getAvgTemperature() > settings.OverTSetpoint)
+    {
+      SERIALCONSOLE.print(": Over Temp ");
+    }
+    if (bms.getAvgTemperature() < settings.UnderTSetpoint)
+    {
+      SERIALCONSOLE.print(": Under Temp ");
+    }
     if (storagemode == 1)
     {
       if (bms.getLowCellVolt() > settings.StoreVsetpoint)
@@ -765,6 +777,19 @@ void printbmsstat()
   }
   SERIALCONSOLE.print("  ");
   SERIALCONSOLE.print(cellspresent);
+  SERIALCONSOLE.println();
+  SERIALCONSOLE.print("Out:");
+  SERIALCONSOLE.print(digitalRead(OUT1));
+  SERIALCONSOLE.print(digitalRead(OUT2));
+  SERIALCONSOLE.print(digitalRead(OUT3));
+  SERIALCONSOLE.print(digitalRead(OUT4));
+  SERIALCONSOLE.print(" Cont:");
+  SERIALCONSOLE.print(contstat, BIN);
+  SERIALCONSOLE.print(" In:");
+  SERIALCONSOLE.print(digitalRead(IN1));
+  SERIALCONSOLE.print(digitalRead(IN2));
+  SERIALCONSOLE.print(digitalRead(IN3));
+  SERIALCONSOLE.print(digitalRead(IN4));
 }
 
 
@@ -1941,9 +1966,9 @@ void menu()
         SERIALCONSOLE.print(settings.chargerspd);
         SERIALCONSOLE.println("mS");
         /*
-        SERIALCONSOLE.print("7- Can Speed:");
-        SERIALCONSOLE.print(settings.canSpeed/1000);
-        SERIALCONSOLE.println("kbps");
+          SERIALCONSOLE.print("7- Can Speed:");
+          SERIALCONSOLE.print(settings.canSpeed/1000);
+          SERIALCONSOLE.println("kbps");
         */
         SERIALCONSOLE.println();
         SERIALCONSOLE.println("q - Go back to menu");
@@ -2488,7 +2513,7 @@ void chargercomms()
     msg.buf[1] = lowByte(uint16_t(settings.ChargeVsetpoint * settings.Scells * 10));
     msg.buf[2] = highByte(chargecurrent / ncharger);
     msg.buf[3] = lowByte(chargecurrent / ncharger);
-    msg.buf[4] = 0x01;
+    msg.buf[4] = 0x00;
     msg.buf[5] = 0x00;
     msg.buf[6] = 0x00;
     msg.buf[7] = 0x00;
