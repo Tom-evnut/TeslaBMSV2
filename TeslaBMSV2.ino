@@ -17,7 +17,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 271117;
+int firmver = 181209;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -2339,6 +2339,15 @@ void currentlimit()
   {
     discurrent = 0;
 
+  }
+  ///No negative currents///
+  if (discurrent < 0)
+  {
+    discurrent = 0;
+  }
+  if (chargecurrent < 0)
+  {
+    chargecurrent = 0;
   }
 }
 
