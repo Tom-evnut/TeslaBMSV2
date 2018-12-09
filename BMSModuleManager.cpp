@@ -615,3 +615,25 @@ void BMSModuleManager::printPackDetails()
     }
   }
 }
+
+void BMSModuleManager::printAllCSV()
+{
+  for (int y = 1; y < 63; y++)
+  {
+    if (modules[y].isExisting())
+    {
+      SERIALCONSOLE.print(y);
+      SERIALCONSOLE.print(",");
+      for (int i = 0; i < 6; i++)
+      {
+        SERIALCONSOLE.print(modules[y].getCellVoltage(i));
+        SERIALCONSOLE.print(",");
+      }
+      SERIALCONSOLE.print(modules[y].getTemperature(0));
+      SERIALCONSOLE.print(",");
+      SERIALCONSOLE.print(modules[y].getTemperature(1));  
+      SERIALCONSOLE.println();
+    }
+  }
+}
+
