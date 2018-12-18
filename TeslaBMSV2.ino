@@ -17,7 +17,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 181209;
+int firmver = 181218;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -113,7 +113,7 @@ int value;
 float currentact, RawCur;
 float ampsecond;
 unsigned long lasttime;
-unsigned long looptime, looptime1, cleartime, baltimer = 0; //ms
+unsigned long looptime, looptime1, UnderTime, cleartime, baltimer = 0; //ms
 int currentsense = 14;
 int sensor = 1;
 
@@ -147,7 +147,7 @@ int outputcheck = 0; //check outputs
 int candebug = 0; //view can frames
 int gaugedebug = 0;
 int debugCur = 0;
-int CSVdebug =0;
+int CSVdebug = 0;
 int menuload = 0;
 int balancecells;
 
@@ -205,6 +205,7 @@ void loadSettings()
   settings.ncur = 1; //number of multiples to use for current measurement
   settings.chargertype = 2; // 1 - Brusa NLG5xx 2 - Volt charger 0 -No Charger
   settings.chargerspd = 100; //ms per message
+  settings.UnderDur = 5000; //ms of allowed undervoltage before throwing open stopping discharge.
 }
 
 CAN_message_t msg;
@@ -433,7 +434,9 @@ void loop()
     {
       case (Boot):
         Discharge = 0;
+        digitalWrite(OUT4, LOW);
         digitalWrite(OUT3, LOW);//turn off charger
+        digitalWrite(OUT2, LOW);
         digitalWrite(OUT1, LOW);//turn off discharge
         contctrl = 0;
         bmsstatus = Ready;
@@ -473,8 +476,8 @@ void loop()
         if (digitalRead(IN1) == LOW)//Key OFF
         {
           digitalWrite(OUT4, LOW);
+          digitalWrite(OUT2, LOW);
           digitalWrite(OUT1, LOW);
-
           contctrl = 0; //turn off out 5 and 6
           bmsstatus = Ready;
         }
@@ -512,12 +515,15 @@ void loop()
         {
           bmsstatus = Charge;
         }
-        if (cellspresent == bms.seriescells()) //detect a fault in cells detected
+        if (digitalRead(IN1) == LOW)//Key OFF
         {
-          if (bms.getLowCellVolt() >= settings.UnderVSetpoint)
+          //if (cellspresent == bms.seriescells()) //detect a fault in cells detected
+          //{
+          if (bms.getLowCellVolt() >= settings.UnderVSetpoint && bms.getHighCellVolt() >= settings.OverVSetpoint)
           {
             bmsstatus = Ready;
           }
+          //}
         }
 
         break;
@@ -534,12 +540,26 @@ void loop()
     bms.getAllVoltTemp();
 
     //UV  check
-
-    if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() < settings.UnderVSetpoint)
+    if (settings.ESSmode == 1)
     {
-      if (settings.ESSmode == 1)
+      if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() < settings.UnderVSetpoint)
       {
+
         bmsstatus = Error;
+      }
+    }
+    else //In 'vehicle' mode
+    {
+      if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() < settings.UnderVSetpoint)
+      {
+        if (UnderTime > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
+        {
+          bmsstatus = Error;
+        }
+      }
+      else
+      {
+        UnderTime = millis() + settings.UnderDur;
       }
     }
 
@@ -1586,8 +1606,16 @@ void menu()
         }
         break;
 
-      case 113: //q to go back to main menu
+      case '4':
+        if (Serial.available() > 0)
+        {
+          settings.UnderDur = Serial.parseInt();
+          menuload = 1;
+          incomingByte = 'a';
+        }
+        break;
 
+      case 113: //q to go back to main menu
         menuload = 0;
         incomingByte = 115;
         break;
@@ -2012,6 +2040,9 @@ void menu()
         SERIALCONSOLE.print("3 - Temp Warning Offset: ");
         SERIALCONSOLE.print(settings.WarnToff);
         SERIALCONSOLE.println(" C");
+        SERIALCONSOLE.print("4 - Temp Warning Offset: ");
+        SERIALCONSOLE.print(settings.UnderDur);
+        SERIALCONSOLE.println(" mS");
         menuload = 7;
         break;
 
