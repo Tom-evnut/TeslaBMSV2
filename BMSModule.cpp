@@ -13,6 +13,7 @@ BMSModule::BMSModule()
     highestCellVolt[i] = 0.0f;
   }
   moduleVolt = 0.0f;
+  retmoduleVolt = 0.0f;
   temperatures[0] = 0.0f;
   temperatures[1] = 0.0f;
   lowestTemperature = 200.0f;
@@ -177,14 +178,21 @@ bool BMSModule::readModuleValues()
     if (buff[0] == (moduleAddress << 1) && buff[1] == REG_GPAI && buff[2] == 0x12) //Also ensure this is actually the reply to our intended query
     {
       //payload is 2 bytes gpai, 2 bytes for each of 6 cell voltages, 2 bytes for each of two temperatures (18 bytes of data)
-      moduleVolt = (buff[3] * 256 + buff[4]) * 0.002034609f;
-      if (moduleVolt > highestModuleVolt) highestModuleVolt = moduleVolt;
-      if (moduleVolt < lowestModuleVolt) lowestModuleVolt = moduleVolt;
+      retmoduleVolt = (buff[3] * 256 + buff[4]) * 0.0020346293922562f;///0.002034609f;
+      if (retmoduleVolt > highestModuleVolt) highestModuleVolt = retmoduleVolt;
+      if (retmoduleVolt < lowestModuleVolt) lowestModuleVolt = retmoduleVolt;
       for (int i = 0; i < 6; i++)
       {
         cellVolt[i] = (buff[5 + (i * 2)] * 256 + buff[6 + (i * 2)]) * 0.000381493f;
         if (lowestCellVolt[i] > cellVolt[i] && cellVolt[i] >= IgnoreCell) lowestCellVolt[i] = cellVolt[i];
         if (highestCellVolt[i] < cellVolt[i]) highestCellVolt[i] = cellVolt[i];
+      }
+
+////use added up cells and not reported module voltage////////
+       moduleVolt = 0;
+      for (int i = 0; i < 6; i++)
+      {
+         moduleVolt = moduleVolt + cellVolt[i];
       }
 
       //Now using steinhart/hart equation for temperatures. We'll see if it is better than old code.

@@ -206,6 +206,7 @@ void loadSettings()
   settings.chargertype = 2; // 1 - Brusa NLG5xx 2 - Volt charger 0 -No Charger
   settings.chargerspd = 100; //ms per message
   settings.UnderDur = 5000; //ms of allowed undervoltage before throwing open stopping discharge.
+  settings.CurDead = 5;// mV of dead band on current sensor
 }
 
 CAN_message_t msg;
@@ -864,7 +865,7 @@ void getcurrent()
       }
       RawCur = int16_t((value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset1) / (settings.convlow * 0.0001);
 
-      if (value < 100 || value > (adc->getMaxValue(ADC_0) - 100))
+      if (abs((int16_t(value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset1)) <  settings.CurDead)
       {
         RawCur = 0;
       }
@@ -1489,6 +1490,15 @@ void menu()
         if (Serial.available() > 0)
         {
           settings.convhigh = Serial.parseInt();
+        }
+        incomingByte = 'c';
+        break;
+
+      case '6':
+        menuload = 1;
+        if (Serial.available() > 0)
+        {
+          settings.CurDead = Serial.parseInt();
         }
         incomingByte = 'c';
         break;
@@ -2143,7 +2153,12 @@ void menu()
           SERIALCONSOLE.print(settings.convhigh * 0.1, 1);
           SERIALCONSOLE.println(" mV/A");
         }
-
+        if (settings.cursens == Analoguesing || settings.cursens == Analoguedual)
+        {
+          SERIALCONSOLE.print("6 - Current Sensor Deadband:");
+          SERIALCONSOLE.print(settings.CurDead);
+          SERIALCONSOLE.println(" mV");
+        }
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 2;
         break;

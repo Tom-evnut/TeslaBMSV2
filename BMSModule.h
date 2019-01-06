@@ -40,7 +40,8 @@ class BMSModule
     float cellVolt[6];          // calculated as 16 bit value * 6.250 / 16383 = volts
     float lowestCellVolt[6];
     float highestCellVolt[6];
-    float moduleVolt;          // calculated as 16 bit value * 33.333 / 16383 = volts
+    float moduleVolt;          // summed cell voltages
+    float retmoduleVolt;          // calculated as 16 bit value * 33.333 / 16383 = volts
     float temperatures[2];     // Don't know the proper scaling at this point
     float lowestTemperature;
     float highestTemperature;
