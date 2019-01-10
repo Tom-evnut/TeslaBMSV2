@@ -17,7 +17,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 190106;
+int firmver = 190108;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -138,7 +138,7 @@ int x = 0;
 int storagemode = 0;
 int cellspresent = 0;
 int dashused = 1;
-int charged = 0;
+int Charged = 0;
 
 //Debugging modes//////////////////
 int debug = 1;
@@ -376,11 +376,13 @@ void loop()
           digitalWrite(OUT3, LOW);//turn off charger
           contctrl = contctrl & 253;
           Pretimer = millis();
+          Charged = 1;
         }
         else
         {
-          if (bms.getHighCellVolt() < (settings.StoreVsetpoint - settings.ChargeHys))
+          if (Charged == 1 && bms.getHighCellVolt() < (settings.StoreVsetpoint - settings.ChargeHys))
           {
+            Charged = 0;
             digitalWrite(OUT3, HIGH);//turn on charger
             if (Pretimer + settings.Pretime < millis())
             {
@@ -397,11 +399,13 @@ void loop()
           digitalWrite(OUT3, LOW);//turn off charger
           contctrl = contctrl & 253;
           Pretimer = millis();
+          Charged = 1;
         }
         else
         {
-          if (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))
+          if (Charged == 1 && bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))
           {
+            Charged = 0;
             digitalWrite(OUT3, HIGH);//turn on charger
             if (Pretimer + settings.Pretime < millis())
             {
