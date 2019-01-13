@@ -2004,6 +2004,9 @@ void menu()
         break;
 
       case 'i': //Ignore Value Settings
+        while (Serial.available()) {
+          Serial.read();
+        }
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
@@ -2020,6 +2023,9 @@ void menu()
         break;
 
       case 'e': //Charging settings
+        while (Serial.available()) {
+          Serial.read();
+        }
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
@@ -2081,6 +2087,9 @@ void menu()
         break;
 
       case 'a': //Alarm and Warning settings
+        while (Serial.available()) {
+          Serial.read();
+        }
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
@@ -2103,6 +2112,9 @@ void menu()
         break;
 
       case 'k': //contactor settings
+        while (Serial.available()) {
+          Serial.read();
+        }
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
@@ -2130,6 +2142,9 @@ void menu()
         debug = 1;
         break;
       case 'd': //d for debug settings
+        while (Serial.available()) {
+          Serial.read();
+        }
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
@@ -2160,6 +2175,9 @@ void menu()
         break;
 
       case 99: //c for calibrate zero offset
+        while (Serial.available()) {
+          Serial.read();
+        }
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
@@ -2212,6 +2230,9 @@ void menu()
         break;
 
       case 98: //c for calibrate zero offset
+        while (Serial.available()) {
+          Serial.read();
+        }
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
         SERIALCONSOLE.println();
