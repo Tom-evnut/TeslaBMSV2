@@ -17,7 +17,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 190108;
+int firmver = 190113;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -150,6 +150,7 @@ int debugCur = 0;
 int CSVdebug = 0;
 int menuload = 0;
 int balancecells;
+int debugdigits = 2; //amount of digits behind decimal for voltage reading
 
 ADC *adc = new ADC(); // adc object
 
@@ -573,7 +574,7 @@ void loop()
     if (debug != 0)
     {
       printbmsstat();
-      bms.printPackDetails();
+      bms.printPackDetails(debugdigits);
     }
     if (CSVdebug != 0)
     {
@@ -1458,6 +1459,19 @@ void menu()
         incomingByte = 'd';
         break;
 
+      case '9':
+        menuload = 1;
+        if (Serial.available() > 0)
+        {
+          debugdigits = Serial.parseInt();
+        }
+        if (debugdigits > 4)
+        {
+          debugdigits = 2;
+        }
+        incomingByte = 'd';
+        break;
+
       case 113: //q for quite menu
 
         menuload = 0;
@@ -2139,6 +2153,8 @@ void menu()
         SERIALCONSOLE.println(gaugedebug);
         SERIALCONSOLE.print("8 - CSV Output :");
         SERIALCONSOLE.println(CSVdebug);
+        SERIALCONSOLE.print("9 - Decimal Places to Show :");
+        SERIALCONSOLE.println(debugdigits);
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 4;
         break;

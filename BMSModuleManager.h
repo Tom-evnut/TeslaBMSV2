@@ -38,7 +38,7 @@ class BMSModuleManager
     */
     void printAllCSV();
     void printPackSummary();
-    void printPackDetails();
+    void printPackDetails(int digits);
 
 
   private:
