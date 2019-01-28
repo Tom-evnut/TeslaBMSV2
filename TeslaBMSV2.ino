@@ -186,7 +186,7 @@ void loadSettings()
   settings.Scells = 12;//Cells in series
   settings.StoreVsetpoint = 3.8; // V storage mode charge max
   settings.discurrentmax = 300; // max discharge current in 0.1A
-  settings.DisTaper = 0.1f; //V offset to bring in discharge taper to Zero Amps at settings.DischVsetpoint
+  settings.DisTaper = 0.3f; //V offset to bring in discharge taper to Zero Amps at settings.DischVsetpoint
   settings.chargecurrentmax = 300; //max charge current in 0.1A
   settings.chargecurrentend = 50; //end charge current in 0.1A
   settings.socvolt[0] = 3100; //Voltage and SOC curve for voltage based SOC calc
