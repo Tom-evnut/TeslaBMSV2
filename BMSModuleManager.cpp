@@ -423,6 +423,8 @@ void BMSModuleManager::setSensors(int sensor, float Ignore)
 float BMSModuleManager::getAvgTemperature()
 {
   float avg = 0.0f;
+  highTemp = -100;
+  lowTemp = 999;
   int y = 0; //counter for modules below -70 (no sensors connected)
   for (int x = 1; x <= MAX_MODULE_ADDR; x++)
   {
@@ -431,6 +433,14 @@ float BMSModuleManager::getAvgTemperature()
       if (modules[x].getAvgTemp() > -70)
       {
         avg += modules[x].getAvgTemp();
+        if (modules[x].getAvgTemp() > highTemp)
+        {
+          highTemp = modules[x].getAvgTemp();
+        }
+        if (modules[x].getAvgTemp() < lowTemp)
+        {
+          lowTemp = modules[x].getAvgTemp();
+        }
       }
       else
       {
@@ -441,6 +451,16 @@ float BMSModuleManager::getAvgTemperature()
   avg = avg / (float)(numFoundModules - y);
 
   return avg;
+}
+
+float BMSModuleManager::getHighTemperature()
+{
+  return highTemp;
+}
+
+float BMSModuleManager::getLowTemperature()
+{
+  return lowTemp;
 }
 
 float BMSModuleManager::getAvgCellVolt()
@@ -580,7 +600,7 @@ void BMSModuleManager::printPackDetails(int digits)
   Logger::console("");
   Logger::console("");
   Logger::console("Modules: %i Cells: %i Strings: %i  Voltage: %fV   Avg Cell Voltage: %fV  Low Cell Voltage: %fV   High Cell Voltage: %fV Delta Voltage: %zmV   Avg Temp: %fC ", numFoundModules, seriescells(),
-                  Pstring, getPackVoltage(), getAvgCellVolt(), LowCellVolt, HighCellVolt, (HighCellVolt-LowCellVolt)*1000, getAvgTemperature());
+                  Pstring, getPackVoltage(), getAvgCellVolt(), LowCellVolt, HighCellVolt, (HighCellVolt - LowCellVolt) * 1000, getAvgTemperature());
   Logger::console("");
   for (int y = 1; y < 63; y++)
   {
@@ -595,7 +615,7 @@ void BMSModuleManager::printPackDetails(int digits)
       SERIALCONSOLE.print(y);
       if (y < 10) SERIALCONSOLE.print(" ");
       SERIALCONSOLE.print("  ");
-      SERIALCONSOLE.print(modules[y].getModuleVoltage(),digits);
+      SERIALCONSOLE.print(modules[y].getModuleVoltage(), digits);
       SERIALCONSOLE.print("V");
       for (int i = 0; i < 6; i++)
       {
@@ -603,7 +623,7 @@ void BMSModuleManager::printPackDetails(int digits)
         SERIALCONSOLE.print("  Cell");
         SERIALCONSOLE.print(cellNum++);
         SERIALCONSOLE.print(": ");
-        SERIALCONSOLE.print(modules[y].getCellVoltage(i),digits);
+        SERIALCONSOLE.print(modules[y].getCellVoltage(i), digits);
         SERIALCONSOLE.print("V");
       }
       SERIALCONSOLE.print("  Neg Term Temp: ");
@@ -631,7 +651,7 @@ void BMSModuleManager::printAllCSV()
       }
       SERIALCONSOLE.print(modules[y].getTemperature(0));
       SERIALCONSOLE.print(",");
-      SERIALCONSOLE.print(modules[y].getTemperature(1));  
+      SERIALCONSOLE.print(modules[y].getTemperature(1));
       SERIALCONSOLE.println();
     }
   }
