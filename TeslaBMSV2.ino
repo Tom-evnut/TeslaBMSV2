@@ -1080,11 +1080,11 @@ void updateSOC()
 
 void Prechargecon()
 {
-  if (digitalRead(IN1) == HIGH) //detect Key ON
+  if (digitalRead(IN1) == HIGH || digitalRead(IN3) == HIGH) //detect Key ON or AC present
   {
     digitalWrite(OUT4, HIGH);//Negative Contactor Close
     contctrl = 2;
-    if (Pretimer + settings.Pretime > millis() || currentact > settings.Precurrent)
+    if (Pretimer +  settings.Pretime > millis() || currentact > settings.Precurrent)
     {
       digitalWrite(OUT2, HIGH);//precharge
     }
@@ -1092,7 +1092,21 @@ void Prechargecon()
     {
       digitalWrite(OUT1, HIGH);//Positive Contactor Close
       contctrl = 3;
-      bmsstatus = Drive;
+      if (settings.ChargerDirect == 1)
+      {
+        bmsstatus = Drive;
+      }
+      else
+      {
+        if (digitalRead(IN3) == HIGH)
+        {
+          bmsstatus = Charge;
+        }
+        if (digitalRead(IN1) == HIGH)
+        {
+          bmsstatus = Drive;
+        }
+      }
       digitalWrite(OUT2, LOW);
     }
   }
@@ -1766,6 +1780,20 @@ void menu()
           incomingByte = 'e';
         }
         break;
+
+      case '7':
+        if ( settings.ChargerDirect == 1)
+        {
+          settings.ChargerDirect = 0;
+        }
+        else
+        {
+          settings.ChargerDirect = 1;
+        }
+        menuload = 1;
+        incomingByte = 'e';
+        break;
+
     }
   }
 
@@ -2106,13 +2134,13 @@ void menu()
           SERIALCONSOLE.print("6- Charger Can Msg Spd: ");
           SERIALCONSOLE.print(settings.chargerspd);
           SERIALCONSOLE.println("mS");
+          SERIALCONSOLE.println();
         }
         /*
           SERIALCONSOLE.print("7- Can Speed:");
           SERIALCONSOLE.print(settings.canSpeed/1000);
           SERIALCONSOLE.println("kbps");
         */
-        SERIALCONSOLE.println();
         SERIALCONSOLE.print("7 - Charger HV Connection: ");
         switch (settings.ChargerDirect)
         {
@@ -2657,31 +2685,31 @@ void dashupdate()
   Serial2.write("stat.txt=");
   Serial2.write(0x22);
   switch (bmsstatus)
-    {
-      case (Boot):
-        Serial2.print(" Boot ");
-        break;
+  {
+    case (Boot):
+      Serial2.print(" Boot ");
+      break;
 
-      case (Ready):
-        Serial2.print(" Ready ");
-        break;
+    case (Ready):
+      Serial2.print(" Ready ");
+      break;
 
-      case (Precharge):
-        Serial2.print(" Precharge ");
-        break;
+    case (Precharge):
+      Serial2.print(" Precharge ");
+      break;
 
-      case (Drive):
-        Serial2.print(" Drive ");
-        break;
+    case (Drive):
+      Serial2.print(" Drive ");
+      break;
 
-      case (Charge):
-        Serial2.print(" Charge ");
-        break;
+    case (Charge):
+      Serial2.print(" Charge ");
+      break;
 
-      case (Error):
-        Serial2.print(" Error ");
-        break;
-    }
+    case (Error):
+      Serial2.print(" Error ");
+      break;
+  }
   Serial2.write(0x22);
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
@@ -2706,12 +2734,12 @@ void dashupdate()
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
-    Serial2.print("templow.val=");
+  Serial2.print("templow.val=");
   Serial2.print(bms.getLowTemperature(), 0);
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
-    Serial2.print("temphigh.val=");
+  Serial2.print("temphigh.val=");
   Serial2.print(bms.getHighTemperature(), 0);
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
