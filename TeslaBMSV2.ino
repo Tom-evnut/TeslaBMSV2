@@ -17,7 +17,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 190404;
+int firmver = 190429;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -63,6 +63,8 @@ byte bmsstatus = 0;
 #define ChevyVolt 2
 #define Eltek 3
 #define Elcon 4
+#define Victron 5
+#define Coda 6
 //
 
 
@@ -96,7 +98,7 @@ unsigned char alarm[4] = {0, 0, 0, 0};
 unsigned char warning[4] = {0, 0, 0, 0};
 unsigned char mes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 unsigned char bmsname[8] = {'S', 'I', 'M', 'P', ' ', 'B', 'M', 'S'};
-unsigned char bmsmanu[8] = {'T', 'O', 'M', ' ', 'D', 'E', ' ', 'B'};
+unsigned char bmsmanu[8] = {'S', 'I', 'M', 'P', ' ', 'E', 'C', 'O'};
 long unsigned int rxId;
 unsigned char len = 0;
 byte rxBuf[8];
@@ -489,7 +491,7 @@ void loop()
 
       //pwmcomms();
     }
-   else
+    else
     {
       switch (bmsstatus)
       {
@@ -1865,7 +1867,7 @@ void menu()
 
       case '5': //1 Over Voltage Setpoint
         settings.chargertype = settings.chargertype + 1;
-        if (settings.chargertype > 5)
+        if (settings.chargertype > 6)
         {
           settings.chargertype = 0;
         }
@@ -2227,6 +2229,9 @@ void menu()
             break;
           case 5:
             SERIALCONSOLE.print("Victron/SMA");
+            break;
+                      case 6:
+            SERIALCONSOLE.print("Coda");
             break;
         }
         SERIALCONSOLE.println();
@@ -3003,6 +3008,37 @@ void chargercomms()
       msg.buf[2] = highByte( 400);
       msg.buf[3] = lowByte( 400);
     }
+    Can0.write(msg);
+  }
+
+  if (settings.chargertype == Coda)
+  {
+    msg.id  = 0x050;
+    msg.len = 8;
+    msg.buf[0] = 0x00;
+    msg.buf[1] = 0xDC;
+    if ((settings.ChargeVsetpoint * settings.Scells ) > 200)
+    {
+      msg.buf[2] = highByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
+      msg.buf[3] = lowByte(uint16_t((settings.ChargeVsetpoint * settings.Scells ) * 10));
+    }
+    else
+    {
+      msg.buf[2] = highByte( 400);
+      msg.buf[3] = lowByte( 400);
+    }
+    msg.buf[4] = 0x00;
+    if ((settings.ChargeVsetpoint * settings.Scells)*chargecurrent < 3300)
+    {
+      msg.buf[5] = highByte(uint16_t(((settings.ChargeVsetpoint * settings.Scells) * chargecurrent) / 240));
+      msg.buf[6] = highByte(uint16_t(((settings.ChargeVsetpoint * settings.Scells) * chargecurrent) / 240));
+    }
+    else //15 A AC limit
+    {
+      msg.buf[5] = 0x00;
+      msg.buf[6] = 0x96;
+    }
+    msg.buf[7] = 0x01; //HV charging
     Can0.write(msg);
   }
 }
