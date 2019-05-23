@@ -1117,6 +1117,7 @@ void getcurrent()
       lasttime = millis();
     }
   }
+  currentact = settings.ncur * currentact;
   RawCur = 0;
 }
 
