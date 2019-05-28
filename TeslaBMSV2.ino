@@ -9,7 +9,7 @@
   the following conditions:
   The above copyright notice and this permission notice shall be included
   in all copies or substantial portions of the Software.
-  
+
   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -38,7 +38,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 190429;
+int firmver = 190528;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -703,14 +703,18 @@ void loop()
     VEcan();
 
 
-    if (cellspresent == 0)
+    if (cellspresent == 0 && SOCset == 1)
     {
-      cellspresent = bms.seriescells();//set amount of connected cells, might need delay
+      cellspresent = bms.seriescells();
+      bms.setSensors(settings.IgnoreTemp, settings.IgnoreVolt);
     }
     else
     {
-      if (cellspresent != bms.seriescells()) //detect a fault in cells detected
+      if (cellspresent != bms.seriescells() || cellspresent != (settings.Scells * settings.Pstrings)) //detect a fault in cells detected
       {
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.print("   !!! Series Cells Fault !!!");
+        SERIALCONSOLE.println("  ");
         bmsstatus = Error;
       }
     }
@@ -2252,7 +2256,7 @@ void menu()
           case 5:
             SERIALCONSOLE.print("Victron/SMA");
             break;
-                      case 6:
+          case 6:
             SERIALCONSOLE.print("Coda");
             break;
         }
