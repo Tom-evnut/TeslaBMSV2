@@ -35,6 +35,7 @@ class BMSModuleManager
     float getHighCellVolt();
     float getHighVoltage();
     float getLowVoltage();
+    int getBalancing();
     /*
       void processCANMsg(CAN_FRAME &frame);
     */
@@ -59,6 +60,7 @@ class BMSModuleManager
     int numFoundModules;                    // The number of modules that seem to exist
     bool isFaulted;
     int spack;
+    int CellsBalancing;
     /*
       void sendBatterySummary();
       void sendModuleSummary(int module);

@@ -47,6 +47,7 @@ void BMSModuleManager::balanceCells(int duration, int debug)
   uint8_t payload[4];
   uint8_t buff[30];
   uint8_t balance = 0;//bit 0 - 5 are to activate cell balancing 1-6
+  CellsBalancing = 0;
   if (debug == 1)
   {
     Serial.println();
@@ -61,7 +62,6 @@ void BMSModuleManager::balanceCells(int duration, int debug)
         if (getLowCellVolt() < modules[y].getCellVoltage(i))
         {
           balance = balance | (1 << i);
-
         }
       }
       if (debug == 1)
@@ -102,6 +102,7 @@ void BMSModuleManager::balanceCells(int duration, int debug)
             Serial.print("-");
           }
         }
+        CellsBalancing = CellsBalancing + balance;
       }
       if (debug == 1)
       {
@@ -371,6 +372,11 @@ void BMSModuleManager::getAllVoltTemp()
       if (modules[x].getLowCellV() <  LowCellVolt)  LowCellVolt = modules[x].getLowCellV();
     }
   }
+}
+
+int BMSModuleManager::getBalancing()
+{
+  return CellsBalancing;
 }
 
 float BMSModuleManager::getLowCellVolt()

@@ -38,7 +38,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 190528;
+int firmver = 100628;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -234,6 +234,7 @@ void loadSettings()
   settings.chargerspd = 100; //ms per message
   settings.UnderDur = 5000; //ms of allowed undervoltage before throwing open stopping discharge.
   settings.CurDead = 5;// mV of dead band on current sensor
+  settings.ExpMess = 0; //send alternate victron info
 }
 
 CAN_message_t msg;
@@ -1137,12 +1138,12 @@ void updateSOC()
     SOCset = 1;
   }
   /*
-  if (settings.cursens == 1)
-  {
+    if (settings.cursens == 1)
+    {
     SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
 
     ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
-  }
+    }
   */
   if (settings.voltsoc == 1)
   {
@@ -1403,20 +1404,40 @@ void VEcan() //communication with Victron system over CAN
 
   msg.id  = 0x355;
   msg.len = 8;
-  msg.buf[0] = lowByte(SOC);
-  msg.buf[1] = highByte(SOC);
-  msg.buf[2] = lowByte(SOH);
-  msg.buf[3] = highByte(SOH);
-  msg.buf[4] = lowByte(SOC * 10);
-  msg.buf[5] = highByte(SOC * 10);
+  if (settings.ExpMess != 1)
+  {
+    msg.buf[0] = lowByte(SOC);
+    msg.buf[1] = highByte(SOC);
+    msg.buf[2] = lowByte(SOH);
+    msg.buf[3] = highByte(SOH);
+    msg.buf[4] = lowByte(SOC * 10);
+    msg.buf[5] = highByte(SOC * 10);
+  }
+  else
+  {
+    msg.buf[0] = lowByte(bms.getBalancing());
+    msg.buf[1] = highByte(bms.getBalancing());
+    msg.buf[2] = lowByte(SOH);
+    msg.buf[3] = highByte(SOH);
+    msg.buf[4] = lowByte(bms.getBalancing() * 10);
+    msg.buf[5] = highByte(bms.getBalancing() * 10);
+  }
   msg.buf[6] = 0;
   msg.buf[7] = 0;
   Can0.write(msg);
 
   msg.id  = 0x356;
   msg.len = 8;
-  msg.buf[0] = lowByte(uint16_t(bms.getPackVoltage() * 100));
-  msg.buf[1] = highByte(uint16_t(bms.getPackVoltage() * 100));
+  if (settings.ExpMess != 1)
+  {
+    msg.buf[0] = lowByte(uint16_t(bms.getPackVoltage() * 100));
+    msg.buf[1] = highByte(uint16_t(bms.getPackVoltage() * 100));
+  }
+  else
+  {
+    msg.buf[0] = lowByte(uint16_t((bms.getHighCellVolt() - bms.getLowCellVolt()) * 100));
+    msg.buf[1] = highByte(uint16_t((bms.getHighCellVolt() - bms.getLowCellVolt()) * 100));
+  }
   msg.buf[2] = lowByte(long(currentact / 100));
   msg.buf[3] = highByte(long(currentact / 100));
   msg.buf[4] = lowByte(uint16_t(bms.getAvgTemperature() * 10));
@@ -1648,6 +1669,25 @@ void menu()
       default:
         // if nothing else matches, do the default
         // default is optional
+        break;
+    }
+  }
+
+  if (menuload == 9)
+  {
+    switch (incomingByte)
+    {
+
+      case '1':
+        menuload = 1;
+        settings.ExpMess = !settings.ExpMess;
+        incomingByte = 'x';
+        break;
+
+      case 113: //q to go back to main menu
+
+        menuload = 0;
+        incomingByte = 115;
         break;
     }
   }
@@ -2193,6 +2233,24 @@ void menu()
         CPU_REBOOT ;
         break;
 
+      case 'x': //Ignore Value Settings
+        while (Serial.available()) {
+          Serial.read();
+        }
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println("Experimental Settings");
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.println("Do not use unless you know what it does!!!!!");
+        SERIALCONSOLE.print("1 - Sending Experimental Victron CAN:");
+        SERIALCONSOLE.println(settings.ExpMess);
+        SERIALCONSOLE.println("q - Go back to menu");
+        menuload = 9;
+        break;
+
       case 'i': //Ignore Value Settings
         while (Serial.available()) {
           Serial.read();
@@ -2541,6 +2599,7 @@ void menu()
     SERIALCONSOLE.println("k - Contactor and Gauge Settings");
     SERIALCONSOLE.println("i - Ignore Value Settings");
     SERIALCONSOLE.println("d - Debug Settings");
+    SERIALCONSOLE.println("x - Experimental Settings");
     SERIALCONSOLE.println("R - Restart BMS");
     SERIALCONSOLE.println("q - exit menu");
     debug = 0;
@@ -2895,6 +2954,22 @@ void dashupdate()
   Serial2.write(0xff);
   Serial2.print("firm.val=");
   Serial2.print(firmver);
+  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+  Serial2.write(0xff);
+  Serial2.write(0xff);
+  Serial2.print("firm.val=");
+  Serial2.print(firmver);
+  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+  Serial2.write(0xff);
+  Serial2.write(0xff);
+  Serial2.print("celldelta.val=");
+  Serial2.print((bms.getHighCellVolt() - bms.getLowCellVolt()) * 1000, 0);
+  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+  Serial2.write(0xff);
+  Serial2.write(0xff);
+    Serial2.write(0xff);
+  Serial2.print("cellbal.val=");
+  Serial2.print(bms.getBalancing());
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
