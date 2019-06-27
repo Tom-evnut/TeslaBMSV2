@@ -1417,8 +1417,8 @@ void VEcan() //communication with Victron system over CAN
   {
     msg.buf[0] = lowByte(bms.getBalancing());
     msg.buf[1] = highByte(bms.getBalancing());
-    msg.buf[2] = lowByte(SOH);
-    msg.buf[3] = highByte(SOH);
+    msg.buf[2] = lowByte(SOC);
+    msg.buf[3] = highByte(SOC);
     msg.buf[4] = lowByte(bms.getBalancing() * 10);
     msg.buf[5] = highByte(bms.getBalancing() * 10);
   }
