@@ -38,7 +38,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 100628;
+int firmver = 190729;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -266,8 +266,14 @@ void setup()
   analogWriteFrequency(OUT6, pwmfreq);
   analogWriteFrequency(OUT7, pwmfreq);
   analogWriteFrequency(OUT8, pwmfreq);
+  
+ EEPROM.get(0, settings);
+  if (settings.version != EEPROM_VERSION)
+  {
+    loadSettings();
+  }
 
-  Can0.begin(500000);
+  Can0.begin(settings.canSpeed);
 
   //if using enable pins on a transceiver they need to be set on
 
@@ -326,13 +332,13 @@ void setup()
 
   SERIALCONSOLE.println("Started serial interface to BMS.");
 
-
+/*
   EEPROM.get(0, settings);
   if (settings.version != EEPROM_VERSION)
   {
     loadSettings();
   }
-
+*/
   bms.renumberBoardIDs();
 
   Logger::setLoglevel(Logger::Off); //Debug = 0, Info = 1, Warn = 2, Error = 3, Off = 4
@@ -716,7 +722,7 @@ void loop()
         SERIALCONSOLE.println("  ");
         SERIALCONSOLE.print("   !!! Series Cells Fault !!!");
         SERIALCONSOLE.println("  ");
-        bmsstatus = Error;
+        //bmsstatus = Error;
       }
     }
     alarmupdate();
@@ -1953,6 +1959,17 @@ void menu()
         break;
 
       case '7':
+        if (Serial.available() > 0)
+        {
+          settings.canSpeed = Serial.parseInt()*1000;
+          Can0.end();
+          Can0.begin(settings.canSpeed);
+          menuload = 1;
+          incomingByte = 'e';
+        }
+        break;
+
+      case '8':
         if ( settings.ChargerDirect == 1)
         {
           settings.ChargerDirect = 0;
@@ -2326,14 +2343,11 @@ void menu()
           SERIALCONSOLE.print("6- Charger Can Msg Spd: ");
           SERIALCONSOLE.print(settings.chargerspd);
           SERIALCONSOLE.println("mS");
-          SERIALCONSOLE.println();
+          SERIALCONSOLE.print("7- Can Baudrate: ");
+          SERIALCONSOLE.print(settings.canSpeed*0.001,0);
+          SERIALCONSOLE.println("kbps");    
         }
-        /*
-          SERIALCONSOLE.print("7- Can Speed:");
-          SERIALCONSOLE.print(settings.canSpeed/1000);
-          SERIALCONSOLE.println("kbps");
-        */
-        SERIALCONSOLE.print("7 - Charger HV Connection: ");
+        SERIALCONSOLE.print("8 - Charger HV Connection: ");
         switch (settings.ChargerDirect)
         {
           case 0:
