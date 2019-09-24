@@ -26,19 +26,21 @@
 #include "Logger.h"
 #include <ADC.h> //https://github.com/pedvide/ADC
 #include <EEPROM.h>
-#include <FlexCAN.h> https://github.com/collin80/FlexCAN_Library 
+#include <FlexCAN.h> //https://github.com/collin80/FlexCAN_Library 
 #include <SPI.h>
 #include <Filters.h>//https://github.com/JonHub/Filters
-
+#include <Serial_CAN_Module.h>
 
 #define CPU_REBOOT (_reboot_Teensyduino_());
 
+
+Serial_CAN can;
 BMSModuleManager bms;
 SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 190729;
+int firmver = 240907;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -102,10 +104,6 @@ int pwmcurmax = 50;//Max current to be shown with pwm
 int pwmcurmid = 50;//Mid point for pwm dutycycle based on current
 int16_t pwmcurmin = 0;//DONOT fill in, calculated later based on other values
 
-
-//variables for VE driect bus comms
-char* myStrings[] = {"V", "14674", "I", "0", "CE", "-1", "SOC", "800", "TTG", "-1", "Alarm", "OFF", "Relay", "OFF", "AR", "0", "BMV", "600S", "FW", "212", "H1", "-3", "H2", "-3", "H3", "0", "H4", "0", "H5", "0", "H6", "-7", "H7", "13180", "H8", "14774", "H9", "137", "H10", "0", "H11", "0", "H12", "0"};
-
 //variables for VE can
 uint16_t chargevoltage = 49100; //max charge voltage in mv
 int chargecurrent = 0;
@@ -125,8 +123,8 @@ unsigned char len = 0;
 byte rxBuf[8];
 char msgString[128];                        // Array to store serial string
 uint32_t inbox;
-signed long CANmilliamps;
-
+signed long CANmilliamps;//mV
+signed long voltage1, voltage2, voltage3 = 0; //mV only with ISAscale sensor
 //struct can_frame canMsg;
 //MCP2515 CAN1(10); //set CS pin for can controlelr
 
@@ -155,6 +153,10 @@ float chargerendbulk = 0; //V before Charge Voltage to turn off the bulk charger
 float chargerend = 0; //V before Charge Voltage to turn off the finishing charger/s
 int chargertoggle = 0;
 int ncharger = 1; // number of chargers
+
+//serial canbus expansion
+unsigned long id = 0;
+unsigned char dta[8];
 
 //variables
 int outputstate = 0;
@@ -218,6 +220,7 @@ void loadSettings()
   settings.socvolt[3] = 90; //Voltage and SOC curve for voltage based SOC calc
   settings.invertcur = 0; //Invert current sensor direction
   settings.cursens = 2;
+  settings.curcan = 1;
   settings.voltsoc = 0; //SOC purely voltage based
   settings.Pretime = 5000; //ms of precharge time
   settings.conthold = 50; //holding duty cycle for contactor 0-255
@@ -235,6 +238,7 @@ void loadSettings()
   settings.UnderDur = 5000; //ms of allowed undervoltage before throwing open stopping discharge.
   settings.CurDead = 5;// mV of dead band on current sensor
   settings.ExpMess = 0; //send alternate victron info
+  settings.SerialCan = 0; //Serial canbus or display: 0-display 1- canbus expansion
 }
 
 CAN_message_t msg;
@@ -266,8 +270,8 @@ void setup()
   analogWriteFrequency(OUT6, pwmfreq);
   analogWriteFrequency(OUT7, pwmfreq);
   analogWriteFrequency(OUT8, pwmfreq);
-  
- EEPROM.get(0, settings);
+
+  EEPROM.get(0, settings);
   if (settings.version != EEPROM_VERSION)
   {
     loadSettings();
@@ -289,7 +293,7 @@ void setup()
   SERIALCONSOLE.println("Starting up!");
   SERIALCONSOLE.println("SimpBMS V2 Tesla");
 
-  Serial2.begin(115200);
+  canSerial.begin(115200); //display and can adpater canbus
 
   // Display reason the Teensy was last reset
   Serial.println();
@@ -332,13 +336,13 @@ void setup()
 
   SERIALCONSOLE.println("Started serial interface to BMS.");
 
-/*
-  EEPROM.get(0, settings);
-  if (settings.version != EEPROM_VERSION)
-  {
-    loadSettings();
-  }
-*/
+  /*
+    EEPROM.get(0, settings);
+    if (settings.version != EEPROM_VERSION)
+    {
+      loadSettings();
+    }
+  */
   bms.renumberBoardIDs();
 
   Logger::setLoglevel(Logger::Off); //Debug = 0, Info = 1, Warn = 2, Error = 3, Off = 4
@@ -370,7 +374,10 @@ void loop()
   {
     menu();
   }
-
+  if (settings.SerialCan == 1)
+  {
+    SerialCanRecieve();
+  }
   if (outputcheck != 1)
   {
     contcon();
@@ -494,15 +501,18 @@ void loop()
             contctrl = contctrl | 1;
           }
         }
+        if (SOCset == 1)
+        {
+          if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint || bms.getAvgTemperature() > settings.OverTSetpoint)
+          {
+            digitalWrite(OUT2, HIGH);//trip breaker
+          }
+          else
+          {
+            digitalWrite(OUT2, LOW);//trip breaker
+          }
+        }
 
-        if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint || bms.getAvgTemperature() > settings.OverTSetpoint)
-        {
-          digitalWrite(OUT2, HIGH);//trip breaker
-        }
-        else
-        {
-          digitalWrite(OUT2, LOW);//trip breaker
-        }
       }
       else
       {
@@ -726,8 +736,10 @@ void loop()
       }
     }
     alarmupdate();
-    dashupdate();
-
+    if (settings.SerialCan == 0)
+    {
+      dashupdate(); //Info on serial bus 2
+    }
     resetwdog();
   }
   if (millis() - cleartime > 5000)
@@ -1504,89 +1516,6 @@ void VEcan() //communication with Victron system over CAN
   Can0.write(msg);
 }
 
-void BMVmessage()//communication with the Victron Color Control System over VEdirect
-{
-  lasttime = millis();
-  x = 0;
-  VE.write(13);
-  VE.write(10);
-  VE.write(myStrings[0]);
-  VE.write(9);
-  VE.print(bms.getPackVoltage() * 1000, 0);
-  VE.write(13);
-  VE.write(10);
-  VE.write(myStrings[2]);
-  VE.write(9);
-  VE.print(currentact);
-  VE.write(13);
-  VE.write(10);
-  VE.write(myStrings[4]);
-  VE.write(9);
-  VE.print(ampsecond * 0.27777777777778, 0); //consumed ah
-  VE.write(13);
-  VE.write(10);
-  VE.write(myStrings[6]);
-  VE.write(9);
-  VE.print(SOC * 10); //SOC
-  x = 8;
-  while (x < 20)
-  {
-    VE.write(13);
-    VE.write(10);
-    VE.write(myStrings[x]);
-    x ++;
-    VE.write(9);
-    VE.write(myStrings[x]);
-    x ++;
-  }
-  VE.write(13);
-  VE.write(10);
-  VE.write("Checksum");
-  VE.write(9);
-  VE.write(0x50); //0x59
-  delay(10);
-
-  while (x < 44)
-  {
-    VE.write(13);
-    VE.write(10);
-    VE.write(myStrings[x]);
-    x ++;
-    VE.write(9);
-    VE.write(myStrings[x]);
-    x ++;
-  }
-  /*
-    VE.write(13);
-    VE.write(10);
-    VE.write(myStrings[32]);
-    VE.write(9);
-    VE.print(bms.getLowVoltage()*1000,0);
-    VE.write(13);
-    VE.write(10);
-    VE.write(myStrings[34]);
-    VE.write(9);
-    VE.print(bms.getHighVoltage()*1000,0);
-    x=36;
-
-    while(x < 43)
-    {
-     VE.write(13);
-     VE.write(10);
-     VE.write(myStrings[x]);
-     x ++;
-     VE.write(9);
-     VE.write(myStrings[x]);
-     x ++;
-    }
-  */
-  VE.write(13);
-  VE.write(10);
-  VE.write("Checksum");
-  VE.write(9);
-  VE.write(231);
-}
-
 // Settings menu
 void menu()
 {
@@ -1689,7 +1618,11 @@ void menu()
         settings.ExpMess = !settings.ExpMess;
         incomingByte = 'x';
         break;
-
+      case '2':
+        menuload = 1;
+        settings.SerialCan = !settings.SerialCan;
+        incomingByte = 'x';
+        break;
       case 113: //q to go back to main menu
 
         menuload = 0;
@@ -1790,6 +1723,18 @@ void menu()
         incomingByte = 'c';
         break;
 
+      case '7': //s for switch sensor
+        if (settings.curcan == 1)
+        {
+          settings.curcan = 2;
+        }
+        else
+        {
+          settings.curcan = 1;
+        }
+        menuload = 1;
+        incomingByte = 'c';
+        break;
 
       default:
         // if nothing else matches, do the default
@@ -1961,7 +1906,7 @@ void menu()
       case '7':
         if (Serial.available() > 0)
         {
-          settings.canSpeed = Serial.parseInt()*1000;
+          settings.canSpeed = Serial.parseInt() * 1000;
           Can0.end();
           Can0.begin(settings.canSpeed);
           menuload = 1;
@@ -2264,6 +2209,16 @@ void menu()
         SERIALCONSOLE.println("Do not use unless you know what it does!!!!!");
         SERIALCONSOLE.print("1 - Sending Experimental Victron CAN:");
         SERIALCONSOLE.println(settings.ExpMess);
+        SERIALCONSOLE.print("2 - Serial Port Function:");
+        if (settings.SerialCan == 0)
+        {
+          SERIALCONSOLE.println("Serial Display");
+        }
+        else
+        {
+          SERIALCONSOLE.println("Can Bus Expansion");
+        }
+
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 9;
         break;
@@ -2344,8 +2299,8 @@ void menu()
           SERIALCONSOLE.print(settings.chargerspd);
           SERIALCONSOLE.println("mS");
           SERIALCONSOLE.print("7- Can Baudrate: ");
-          SERIALCONSOLE.print(settings.canSpeed*0.001,0);
-          SERIALCONSOLE.println("kbps");    
+          SERIALCONSOLE.print(settings.canSpeed * 0.001, 0);
+          SERIALCONSOLE.println("kbps");
         }
         SERIALCONSOLE.print("8 - Charger HV Connection: ");
         switch (settings.ChargerDirect)
@@ -2501,6 +2456,18 @@ void menu()
           SERIALCONSOLE.print(settings.CurDead);
           SERIALCONSOLE.println(" mV");
         }
+        if ( settings.cursens == Canbus)
+        {
+          SERIALCONSOLE.print("7 -Can Current Sensor :");
+          if (settings.curcan == 1)
+          {
+            SERIALCONSOLE.println(" LEM CAB series ");
+          }
+          if (settings.curcan == 2)
+          {
+            SERIALCONSOLE.println(" IsaScale IVT-S ");
+          }
+        }
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 2;
         break;
@@ -2625,14 +2592,33 @@ void canread()
 {
   Can0.read(inMsg);
   // Read data: len = data length, buf = data byte(s)
-  switch (inMsg.id)
+  if (settings.curcan == 1)
   {
-    case 0x3c2:
-      CAB300();
-      break;
-
-    default:
-      break;
+    switch (inMsg.id)
+    {
+      case 0x3c2:
+        CAB300();
+        break;
+      default:
+        break;
+    }
+  }
+  if (settings.curcan == 2)
+  {
+    switch (inMsg.id)
+    {
+      case 0x521: //
+        CANmilliamps = rxBuf[5] + (rxBuf[4] << 8) + (rxBuf[3] << 16) + (rxBuf[2] << 24);
+        break;
+      case 0x522: //
+        voltage1 = rxBuf[5] + (rxBuf[4] << 8) + (rxBuf[3] << 16) + (rxBuf[2] << 24);
+        break;
+      case 0x523: //
+        voltage2 = rxBuf[5] + (rxBuf[4] << 8) + (rxBuf[3] << 16) + (rxBuf[2] << 24);
+        break;
+      default:
+        break;
+    }
   }
   if (candebug == 1)
   {
@@ -2981,7 +2967,7 @@ void dashupdate()
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
-    Serial2.write(0xff);
+  Serial2.write(0xff);
   Serial2.print("cellbal.val=");
   Serial2.print(bms.getBalancing());
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
@@ -3157,5 +3143,21 @@ void chargercomms()
     }
     msg.buf[7] = 0x01; //HV charging
     Can0.write(msg);
+  }
+}
+
+void SerialCanRecieve()
+{
+  if (can.recv(&id, dta))
+  {
+    Serial.print("GET DATA FROM ID: ");
+    Serial.println(id, HEX);
+    for (int i = 0; i < 8; i++)
+    {
+      Serial.print("0x");
+      Serial.print(dta[i], HEX);
+      Serial.print('\t');
+    }
+    Serial.println();
   }
 }
