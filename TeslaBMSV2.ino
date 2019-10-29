@@ -29,7 +29,7 @@
 #include <FlexCAN.h> //https://github.com/collin80/FlexCAN_Library 
 #include <SPI.h>
 #include <Filters.h>//https://github.com/JonHub/Filters
-#include "Serial_CAN_Module_Teensy.h"
+#include "Serial_CAN_Module_Teensy.h" //https://github.com/tomdebree/Serial_CAN_Teensy
 
 #define CPU_REBOOT (_reboot_Teensyduino_());
 
@@ -40,7 +40,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 240907;
+int firmver = 241008;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -1422,7 +1422,7 @@ void VEcan() //communication with Victron system over CAN
 
   msg.id  = 0x355;
   msg.len = 8;
-  if (settings.ExpMess != 1)
+  if (settings.ExpMess == false)
   {
     msg.buf[0] = lowByte(SOC);
     msg.buf[1] = highByte(SOC);
@@ -1446,7 +1446,7 @@ void VEcan() //communication with Victron system over CAN
 
   msg.id  = 0x356;
   msg.len = 8;
-  if (settings.ExpMess != 1)
+  if (settings.ExpMess == false)
   {
     msg.buf[0] = lowByte(uint16_t(bms.getPackVoltage() * 100));
     msg.buf[1] = highByte(uint16_t(bms.getPackVoltage() * 100));
@@ -1610,6 +1610,14 @@ void menu()
 
   if (menuload == 9)
   {
+    if (settings.SerialCan > 1)
+    {
+      settings.SerialCan = 0;
+    }
+    if (settings.ExpMess > 1)
+    {
+      settings.ExpMess = 0;
+    }
     switch (incomingByte)
     {
 
@@ -1624,7 +1632,6 @@ void menu()
         incomingByte = 'x';
         break;
       case 113: //q to go back to main menu
-
         menuload = 0;
         incomingByte = 115;
         break;
@@ -2001,6 +2008,15 @@ void menu()
         incomingByte = 115;
         break;
 
+      case 'b':
+        if (Serial.available() > 0)
+        {
+          settings.socvolt[0] = Serial.parseInt();
+          menuload = 1;
+          incomingByte = 'b';
+        }
+        break;
+
       case 'f': //f factory settings
         loadSettings();
         SERIALCONSOLE.println("  ");
@@ -2051,15 +2067,6 @@ void menu()
           menuload = 1;
           incomingByte = 'b';
         }
-
-      case 'b':
-        if (Serial.available() > 0)
-        {
-          settings.socvolt[0] = Serial.parseInt();
-          menuload = 1;
-          incomingByte = 'b';
-        }
-        break;
 
 
       case 'c':
@@ -2877,31 +2884,46 @@ void dashupdate()
 {
   Serial2.write("stat.txt=");
   Serial2.write(0x22);
-  switch (bmsstatus)
+  if (settings.ESSmode == 1)
   {
-    case (Boot):
-      Serial2.print(" Boot ");
-      break;
+    switch (bmsstatus)
+    {
+      case (Boot):
+        Serial2.print(" Active ");
+        break;
+      case (Error):
+        Serial2.print(" Error ");
+        break;
+    }
+  }
+  else
+  {
+    switch (bmsstatus)
+    {
+      case (Boot):
+        Serial2.print(" Boot ");
+        break;
 
-    case (Ready):
-      Serial2.print(" Ready ");
-      break;
+      case (Ready):
+        Serial2.print(" Ready ");
+        break;
 
-    case (Precharge):
-      Serial2.print(" Precharge ");
-      break;
+      case (Precharge):
+        Serial2.print(" Precharge ");
+        break;
 
-    case (Drive):
-      Serial2.print(" Drive ");
-      break;
+      case (Drive):
+        Serial2.print(" Drive ");
+        break;
 
-    case (Charge):
-      Serial2.print(" Charge ");
-      break;
+      case (Charge):
+        Serial2.print(" Charge ");
+        break;
 
-    case (Error):
-      Serial2.print(" Error ");
-      break;
+      case (Error):
+        Serial2.print(" Error ");
+        break;
+    }
   }
   Serial2.write(0x22);
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
@@ -2949,11 +2971,6 @@ void dashupdate()
   Serial2.write(0xff);
   Serial2.print("highcell.val=");
   Serial2.print(bms.getHighCellVolt() * 1000, 0);
-  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
-  Serial2.write(0xff);
-  Serial2.write(0xff);
-  Serial2.print("firm.val=");
-  Serial2.print(firmver);
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
