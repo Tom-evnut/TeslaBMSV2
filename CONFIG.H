@@ -93,4 +93,8 @@ typedef struct {
   bool ChargerDirect;
   bool ExpMess;
   bool SerialCan;
+  uint16_t PulseCh;
+  uint16_t PulseChDur;
+  uint16_t PulseDi;
+  uint16_t PulseDiDur;
 } EEPROMSettings;
