@@ -2707,7 +2707,7 @@ void currentlimit()
     ///////All hard limits to into zeros
     if (bms.getAvgTemperature() < settings.UnderTSetpoint)
     {
-      discurrent = 0;
+      //discurrent = 0; Request Daniel
       chargecurrent = 0;
     }
     if (bms.getAvgTemperature() > settings.OverTSetpoint)
