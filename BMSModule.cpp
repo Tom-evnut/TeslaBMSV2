@@ -188,11 +188,11 @@ bool BMSModule::readModuleValues()
         if (highestCellVolt[i] < cellVolt[i]) highestCellVolt[i] = cellVolt[i];
       }
 
-////use added up cells and not reported module voltage////////
-       moduleVolt = 0;
+      ////use added up cells and not reported module voltage////////
+      moduleVolt = 0;
       for (int i = 0; i < 6; i++)
       {
-         moduleVolt = moduleVolt + cellVolt[i];
+        moduleVolt = moduleVolt + cellVolt[i];
       }
 
       //Now using steinhart/hart equation for temperatures. We'll see if it is better than old code.
@@ -307,19 +307,34 @@ float BMSModule::getLowestTemp()
 
 float BMSModule::getLowTemp()
 {
-  return (temperatures[0] < temperatures[1]) ? temperatures[0] : temperatures[1];
+  if (sensor == 0)
+  {
+    return (temperatures[0] < temperatures[1]) ? temperatures[0] : temperatures[1];
+  }
+  else
+  {
+    return temperatures[sensor - 1];
+  }
 }
 
 float BMSModule::getHighTemp()
 {
-  return (temperatures[0] < temperatures[1]) ? temperatures[1] : temperatures[0];
+  if (sensor == 0)
+  {
+    return (temperatures[0] < temperatures[1]) ? temperatures[1] : temperatures[0];
+  }
+  else
+  {
+    return temperatures[sensor - 1];
+  }
+
 }
 
 float BMSModule::getAvgTemp()
 {
   if (sensor == 0)
   {
-    return (temperatures[0] + temperatures[1]) / 2.0f;
+    return (temperatures[0] + temperatures[1]) * 0.5f;
   }
   else
   {
@@ -368,4 +383,3 @@ void BMSModule::setIgnoreCell(float Ignore)
 {
   IgnoreCell = Ignore;
 }
-
