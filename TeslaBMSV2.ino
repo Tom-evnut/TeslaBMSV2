@@ -779,14 +779,19 @@ void alarmupdate()
   {
     alarm[0] |= 0x10;
   }
-  if (bms.getAvgTemperature() > settings.OverTSetpoint)
+  if (bms.getHighTemperature() > settings.OverTSetpoint)
   {
     alarm[0] |= 0x40;
   }
   alarm[1] = 0;
-  if (bms.getAvgTemperature() < settings.UnderTSetpoint)
+  if (bms.getLowTemperature() < settings.UnderTSetpoint)
   {
     alarm[1] = 0x01;
+  }
+  alarm[3] = 0;
+  if ((bms.getHighCellVolt() - bms.getLowCellVolt()) > settings.CellGap)
+  {
+    alarm[3] = 0x01;
   }
 
   ///warnings///
@@ -801,19 +806,14 @@ void alarmupdate()
     warning[0] |= 0x10;
   }
 
-  if (bms.getAvgTemperature() > (settings.OverTSetpoint - settings.WarnToff))
+  if (bms.getHighTemperature() > (settings.OverTSetpoint - settings.WarnToff))
   {
     warning[0] |= 0x40;
   }
   warning[1] = 0;
-  if (bms.getAvgTemperature() < (settings.UnderTSetpoint + settings.WarnToff))
+  if (bms.getLowTemperature() < (settings.UnderTSetpoint + settings.WarnToff))
   {
     warning[1] = 0x01;
-  }
-  warning[3] = 0;
-  if ((bms.getHighCellVolt() - bms.getLowCellVolt()) > settings.CellGap)
-  {
-    warning[3] = 0x01;
   }
 }
 
@@ -2705,12 +2705,12 @@ void currentlimit()
 
 
     ///////All hard limits to into zeros
-    if (bms.getAvgTemperature() < settings.UnderTSetpoint)
+    if (bms.getLowTemperature() < settings.UnderTSetpoint)
     {
       //discurrent = 0; Request Daniel
       chargecurrent = 0;
     }
-    if (bms.getAvgTemperature() > settings.OverTSetpoint)
+    if (bms.getHighTemperature() > settings.OverTSetpoint)
     {
       discurrent = 0;
       chargecurrent = 0;
@@ -2735,9 +2735,9 @@ void currentlimit()
     {
       //Temperature based///
 
-      if (bms.getAvgTemperature() > settings.DisTSetpoint)
+      if (bms.getLowTemperature() > settings.DisTSetpoint)
       {
-        discurrent = discurrent - map(bms.getAvgTemperature(), settings.DisTSetpoint, settings.OverTSetpoint, 0, settings.discurrentmax);
+        discurrent = discurrent - map(bms.getLowTemperature(), settings.DisTSetpoint, settings.OverTSetpoint, 0, settings.discurrentmax);
       }
       //Voltagee based///
       if (bms.getLowCellVolt() > settings.UnderVSetpoint || bms.getLowCellVolt() > settings.DischVsetpoint)
@@ -2754,9 +2754,9 @@ void currentlimit()
     if (chargecurrent > 0)
     {
       //Temperature based///
-      if (bms.getAvgTemperature() < settings.ChargeTSetpoint)
+      if (bms.getHighTemperature() < settings.ChargeTSetpoint)
       {
-        chargecurrent = chargecurrent - map(bms.getAvgTemperature(), settings.UnderTSetpoint, settings.ChargeTSetpoint, settings.chargecurrentmax, 0);
+        chargecurrent = chargecurrent - map(bms.getHighTemperature(), settings.UnderTSetpoint, settings.ChargeTSetpoint, settings.chargecurrentmax, 0);
       }
       //Voltagee based///
       if (storagemode == 1)
