@@ -40,7 +40,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 191122;
+int firmver = 191125;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -229,10 +229,11 @@ void loadSettings()
   settings.Pretime = 5000; //ms of precharge time
   settings.conthold = 50; //holding duty cycle for contactor 0-255
   settings.Precurrent = 1000; //ma before closing main contator
-  settings.convhigh = 58; // mV/A current sensor high range channel
-  settings.convlow = 643; // mV/A current sensor low range channel
+  settings.convhigh = 580; // mV/A current sensor high range channel
+  settings.convlow = 6430; // mV/A current sensor low range channel
   settings.offset1 = 1750; //mV mid point of channel 1
   settings.offset2 = 1750;//mV mid point of channel 2
+  settings.changecur = 20000;//mA change overpoint
   settings.gaugelow = 50; //empty fuel gauge pwm
   settings.gaugehigh = 255; //full fuel gauge pwm
   settings.ESSmode = 0; //activate ESS mode
@@ -507,7 +508,7 @@ void loop()
         }
         if (SOCset == 1)
         {
-          if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint || bms.getAvgTemperature() > settings.OverTSetpoint)
+          if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighTemperature() > settings.OverTSetpoint)
           {
             digitalWrite(OUT2, HIGH);//trip breaker
           }
@@ -529,6 +530,14 @@ void loop()
           digitalWrite(OUT1, LOW);//turn off discharge
           contctrl = 0; //turn off out 5 and 6
         */
+        if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighTemperature() > settings.OverTSetpoint)
+        {
+          digitalWrite(OUT2, HIGH);//trip breaker
+        }
+        else
+        {
+          digitalWrite(OUT2, LOW);//trip breaker
+        }
       }
 
       //pwmcomms();
@@ -1007,7 +1016,7 @@ void getcurrent()
   {
     if ( settings.cursens == Analoguedual)
     {
-      if (currentact < 19000 && currentact > -19000)
+      if (currentact < settings.changecur && currentact > (settings.changecur * -1))
       {
         sensor = 1;
         adc->startContinuous(ACUR1, ADC_0);
@@ -1045,7 +1054,7 @@ void getcurrent()
         SERIALCONSOLE.print(" ");
         SERIALCONSOLE.print(settings.offset1);
       }
-      RawCur = int16_t((value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset1) / (settings.convlow * 0.0001);
+      RawCur = int16_t((value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset1) / (settings.convlow * 0.00001);
 
       if (abs((int16_t(value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset1)) <  settings.CurDead)
       {
@@ -1076,7 +1085,7 @@ void getcurrent()
         SERIALCONSOLE.print("  ");
         SERIALCONSOLE.print(settings.offset2);
       }
-      RawCur = int16_t((value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset2) / (settings.convhigh * 0.0001);
+      RawCur = int16_t((value * 3300 / adc->getMaxValue(ADC_0)) - settings.offset2) / (settings.convhigh * 0.00001);
       if (value < 100 || value > (adc->getMaxValue(ADC_0) - 100))
       {
         RawCur = 0;
@@ -1092,6 +1101,7 @@ void getcurrent()
       }
     }
   }
+
   if (settings.invertcur == 1)
   {
     RawCur = RawCur * -1;
@@ -1101,9 +1111,18 @@ void getcurrent()
   if (debugCur != 0)
   {
     SERIALCONSOLE.print(lowpassFilter.output());
+    SERIALCONSOLE.print(" | ");
+    SERIALCONSOLE.print(settings.changecur);
+    SERIALCONSOLE.print(" | ");
   }
 
   currentact = lowpassFilter.output();
+
+  if (debugCur != 0)
+  {
+    SERIALCONSOLE.print(currentact);
+    SERIALCONSOLE.print("mA  ");
+  }
 
   if ( settings.cursens == Analoguedual)
   {
@@ -1121,7 +1140,7 @@ void getcurrent()
     }
     if (sensor == 2)
     {
-      if (currentact > 180000 || currentact < -18000 )
+      if (currentact > settings.changecur || currentact < (settings.changecur * -1) )
       {
         ampsecond = ampsecond + ((currentact * (millis() - lasttime) / 1000) / 1000);
         lasttime = millis();
@@ -1146,6 +1165,45 @@ void getcurrent()
   }
   currentact = settings.ncur * currentact;
   RawCur = 0;
+  /*
+    AverageCurrentTotal = AverageCurrentTotal - RunningAverageBuffer[NextRunningAverage];
+
+    RunningAverageBuffer[NextRunningAverage] = currentact;
+
+    if (debugCur != 0)
+    {
+      SERIALCONSOLE.print(" | ");
+      SERIALCONSOLE.print(AverageCurrentTotal);
+      SERIALCONSOLE.print(" | ");
+      SERIALCONSOLE.print(RunningAverageBuffer[NextRunningAverage]);
+      SERIALCONSOLE.print(" | ");
+    }
+    AverageCurrentTotal = AverageCurrentTotal + RunningAverageBuffer[NextRunningAverage];
+    if (debugCur != 0)
+    {
+      SERIALCONSOLE.print(" | ");
+      SERIALCONSOLE.print(AverageCurrentTotal);
+      SERIALCONSOLE.print(" | ");
+    }
+
+    NextRunningAverage = NextRunningAverage + 1;
+
+    if (NextRunningAverage > RunningAverageCount)
+    {
+      NextRunningAverage = 0;
+    }
+
+    AverageCurrent = AverageCurrentTotal / (RunningAverageCount + 1);
+
+    if (debugCur != 0)
+    {
+      SERIALCONSOLE.print(AverageCurrent);
+      SERIALCONSOLE.print(" | ");
+      SERIALCONSOLE.print(AverageCurrentTotal);
+      SERIALCONSOLE.print(" | ");
+      SERIALCONSOLE.print(NextRunningAverage);
+    }
+  */
 }
 
 void updateSOC()
@@ -1676,6 +1734,16 @@ void menu()
         incomingByte = 'c';
         break;
 
+      case '8':
+        menuload = 1;
+        if (Serial.available() > 0)
+        {
+          settings.changecur = Serial.parseInt();
+        }
+        menuload = 1;
+        incomingByte = 'c';
+        break;
+
       case '4':
         menuload = 1;
         if (Serial.available() > 0)
@@ -1935,6 +2003,15 @@ void menu()
         {
           settings.ChargerDirect = 1;
         }
+
+      case '9':
+        if (Serial.available() > 0)
+        {
+          settings.ChargeTSetpoint = Serial.parseInt();
+          menuload = 1;
+          incomingByte = 'e';
+        }
+        break;
         menuload = 1;
         incomingByte = 'e';
         break;
@@ -2073,6 +2150,13 @@ void menu()
           incomingByte = 'b';
         }
 
+      case 'j':
+        if (Serial.available() > 0)
+        {
+          settings.DisTSetpoint = Serial.parseInt();
+          menuload = 1;
+          incomingByte = 'b';
+        }
 
       case 'c':
         if (Serial.available() > 0)
@@ -2325,6 +2409,9 @@ void menu()
             break;
         }
         SERIALCONSOLE.println();
+        SERIALCONSOLE.print("9 - Charge Current derate Low: ");
+        SERIALCONSOLE.print(settings.ChargeTSetpoint);
+        SERIALCONSOLE.println(" C");
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 6;
         break;
@@ -2453,21 +2540,31 @@ void menu()
         if (settings.cursens == Analoguesing || settings.cursens == Analoguedual)
         {
           SERIALCONSOLE.print("4 - Analogue Low Range Conv:");
-          SERIALCONSOLE.print(settings.convlow * 0.1, 1);
+          SERIALCONSOLE.print(settings.convlow * 0.01, 2);
           SERIALCONSOLE.println(" mV/A");
         }
         if ( settings.cursens == Analoguedual)
         {
           SERIALCONSOLE.print("5 - Analogue High Range Conv:");
-          SERIALCONSOLE.print(settings.convhigh * 0.1, 1);
+          SERIALCONSOLE.print(settings.convhigh * 0.01, 2);
           SERIALCONSOLE.println(" mV/A");
+
         }
         if (settings.cursens == Analoguesing || settings.cursens == Analoguedual)
         {
           SERIALCONSOLE.print("6 - Current Sensor Deadband:");
           SERIALCONSOLE.print(settings.CurDead);
           SERIALCONSOLE.println(" mV");
+
         }
+        if ( settings.cursens == Analoguedual)
+        {
+
+          SERIALCONSOLE.print("8 - Current Channel ChangeOver:");
+          SERIALCONSOLE.print(settings.changecur * 0.001);
+          SERIALCONSOLE.println(" A");
+        }
+
         if ( settings.cursens == Canbus)
         {
           SERIALCONSOLE.print("7 -Can Current Sensor :");
@@ -2483,6 +2580,7 @@ void menu()
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 2;
         break;
+
 
       case 98: //c for calibrate zero offset
         while (Serial.available())
@@ -2565,6 +2663,10 @@ void menu()
         SERIALCONSOLE.print("h - Discharge Current Taper Offset: ");
         SERIALCONSOLE.print(settings.DisTaper * 1000, 0 );
         SERIALCONSOLE.print("mV");
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.print("j - Discharge Current Temperature Derate : ");
+        SERIALCONSOLE.print(settings.DisTSetpoint);
+        SERIALCONSOLE.print("C");
         SERIALCONSOLE.println("  ");
 
         SERIALCONSOLE.println();
@@ -2736,9 +2838,9 @@ void currentlimit()
     {
       //Temperature based///
 
-      if (bms.getLowTemperature() > settings.DisTSetpoint)
+      if (bms.getHighTemperature() > settings.DisTSetpoint)
       {
-        discurrent = discurrent - map(bms.getLowTemperature(), settings.DisTSetpoint, settings.OverTSetpoint, 0, settings.discurrentmax);
+        discurrent = discurrent - map(bms.getHighTemperature(), settings.DisTSetpoint, settings.OverTSetpoint, 0, settings.discurrentmax);
       }
       //Voltagee based///
       if (bms.getLowCellVolt() > settings.UnderVSetpoint || bms.getLowCellVolt() > settings.DischVsetpoint)
@@ -2755,9 +2857,9 @@ void currentlimit()
     if (chargecurrent > 0)
     {
       //Temperature based///
-      if (bms.getHighTemperature() < settings.ChargeTSetpoint)
+      if (bms.getLowTemperature() < settings.ChargeTSetpoint)
       {
-        chargecurrent = chargecurrent - map(bms.getHighTemperature(), settings.UnderTSetpoint, settings.ChargeTSetpoint, settings.chargecurrentmax, 0);
+        chargecurrent = chargecurrent - map(bms.getLowTemperature(), settings.UnderTSetpoint, settings.ChargeTSetpoint, settings.chargecurrentmax, 0);
       }
       //Voltagee based///
       if (storagemode == 1)

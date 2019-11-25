@@ -78,6 +78,7 @@ typedef struct {
   int Precurrent;
   float convhigh;
   float convlow;
+  int32_t changecur;
   uint16_t offset1;
   uint16_t offset2;
   int balanceDuty;
