@@ -40,7 +40,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 191125;
+int firmver = 191203;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -530,13 +530,16 @@ void loop()
           digitalWrite(OUT1, LOW);//turn off discharge
           contctrl = 0; //turn off out 5 and 6
         */
-        if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighTemperature() > settings.OverTSetpoint)
+        if (SOCset == 1)
         {
-          digitalWrite(OUT2, HIGH);//trip breaker
-        }
-        else
-        {
-          digitalWrite(OUT2, LOW);//trip breaker
+          if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighTemperature() > settings.OverTSetpoint)
+          {
+            digitalWrite(OUT2, HIGH);//trip breaker
+          }
+          else
+          {
+            digitalWrite(OUT2, LOW);//trip breaker
+          }
         }
       }
 
