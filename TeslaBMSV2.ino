@@ -2696,7 +2696,7 @@ void menu()
     }
   }
 
-  if (incomingByte == 115 & menuload == 0)
+  if (incomingByte == 115 && menuload == 0)
   {
     SERIALCONSOLE.println();
     SERIALCONSOLE.println("MENU");
