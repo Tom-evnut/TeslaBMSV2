@@ -2829,6 +2829,7 @@ void CAB300()
 
 void handleVictronLynx()
 {
+	if(inMsg.buf[4] == 0xff && inMsg.buf[3] == 0xff) return;
 	int16_t current = (int)inMsg.buf[4] << 8; // in 0.1A increments
 	current |= inMsg.buf[3];
 	CANmilliamps = current * 100;
