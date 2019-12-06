@@ -40,7 +40,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 191203;
+int firmver = 191206;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -745,10 +745,13 @@ void loop()
     {
       if (cellspresent != bms.seriescells() || cellspresent != (settings.Scells * settings.Pstrings)) //detect a fault in cells detected
       {
-        SERIALCONSOLE.println("  ");
-        SERIALCONSOLE.print("   !!! Series Cells Fault !!!");
-        SERIALCONSOLE.println("  ");
-        //bmsstatus = Error;
+        if (debug != 0)
+        {
+          SERIALCONSOLE.println("  ");
+          SERIALCONSOLE.print("   !!! Series Cells Fault !!!");
+          SERIALCONSOLE.println("  ");
+          //bmsstatus = Error;
+        }
       }
     }
     alarmupdate();
@@ -839,13 +842,15 @@ void gaugeupdate()
       SOCtest = 0;
     }
     analogWrite(OUT8, map(SOCtest * 0.1, 0, 100, settings.gaugelow, settings.gaugehigh));
-
-    SERIALCONSOLE.println("  ");
-    SERIALCONSOLE.print("SOC : ");
-    SERIALCONSOLE.print(SOCtest * 0.1);
-    SERIALCONSOLE.print("  fuel pwm : ");
-    SERIALCONSOLE.print(map(SOCtest * 0.1, 0, 100, settings.gaugelow, settings.gaugehigh));
-    SERIALCONSOLE.println("  ");
+    if (debug != 0)
+    {
+      SERIALCONSOLE.println("  ");
+      SERIALCONSOLE.print("SOC : ");
+      SERIALCONSOLE.print(SOCtest * 0.1);
+      SERIALCONSOLE.print("  fuel pwm : ");
+      SERIALCONSOLE.print(map(SOCtest * 0.1, 0, 100, settings.gaugelow, settings.gaugehigh));
+      SERIALCONSOLE.println("  ");
+    }
   }
   if (gaugedebug == 2)
   {
@@ -1214,9 +1219,12 @@ void updateSOC()
   if (SOCset == 0)
   {
     SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
+            if (debug != 0)
+        {
     SERIALCONSOLE.print("  ");
     SERIALCONSOLE.print(SOC);
     SERIALCONSOLE.print("  ");
+        }
     ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
     SOCset = 1;
   }
@@ -1381,8 +1389,11 @@ void contcon()
       {
         if (conttimer2 == 0)
         {
+                  if (debug != 0)
+        {
           Serial.println();
           Serial.println("pull in OUT6");
+        }
           analogWrite(OUT6, 255);
           conttimer2 = millis() + pulltime ;
         }
@@ -1400,8 +1411,11 @@ void contcon()
       {
         if (conttimer3 == 0)
         {
+                  if (debug != 0)
+        {
           Serial.println();
           Serial.println("pull in OUT7");
+        }
           analogWrite(OUT7, 255);
           conttimer3 = millis() + pulltime ;
         }
