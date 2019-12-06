@@ -78,6 +78,11 @@ byte bmsstatus = 0;
 #define Analoguedual 1
 #define Canbus 2
 #define Analoguesing 3
+// Can current sensor values
+#define LemCAB 1
+#define IsaScale 2
+#define VictronLynx 3
+#define CurCanMax 3 // max value
 
 //
 //Charger Types
@@ -224,7 +229,7 @@ void loadSettings()
   settings.socvolt[3] = 90; //Voltage and SOC curve for voltage based SOC calc
   settings.invertcur = 0; //Invert current sensor direction
   settings.cursens = 2;
-  settings.curcan = 1;
+  settings.curcan = LemCAB;
   settings.voltsoc = 0; //SOC purely voltage based
   settings.Pretime = 5000; //ms of precharge time
   settings.conthold = 50; //holding duty cycle for contactor 0-255
@@ -283,6 +288,14 @@ void setup()
   }
 
   Can0.begin(settings.canSpeed);
+  CAN_filter_t allPassFilter; // Enables extended addresses
+  allPassFilter.id = 0;
+  allPassFilter.ext = 1;
+  allPassFilter.rtr = 0;
+
+  for(int filterNum = 4; filterNum < 16; filterNum++) {
+    Can0.setFilter(allPassFilter, filterNum);
+  }
 
   //if using enable pins on a transceiver they need to be set on
 
@@ -1807,14 +1820,10 @@ void menu()
         break;
 
       case '7': //s for switch sensor
-        if (settings.curcan == 1)
-        {
-          settings.curcan = 2;
-        }
-        else
-        {
-          settings.curcan = 1;
-        }
+				settings.curcan++;
+				if(settings.curcan > CurCanMax) {
+					settings.curcan = 1;
+				}
         menuload = 1;
         incomingByte = 'c';
         break;
@@ -2571,14 +2580,18 @@ void menu()
         if ( settings.cursens == Canbus)
         {
           SERIALCONSOLE.print("7 -Can Current Sensor :");
-          if (settings.curcan == 1)
+          if (settings.curcan == LemCAB)
           {
             SERIALCONSOLE.println(" LEM CAB series ");
           }
-          if (settings.curcan == 2)
+          else if (settings.curcan == IsaScale)
           {
             SERIALCONSOLE.println(" IsaScale IVT-S ");
           }
+					else if (settings.curcan == VictronLynx)
+					{
+						SERIALCONSOLE.println(" Victron Lynx VE.CAN Shunt");
+					}
         }
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 2;
@@ -2705,6 +2718,18 @@ void menu()
   }
 }
 
+int pgnFromCANId(int canId) 
+{
+	if((canId & 0x10000000) == 0x10000000)
+	{
+		return (canId & 0x03FFFF00) >> 8;
+	}
+	else
+	{
+		return canId; // not sure if this is really right?
+	}
+}
+
 void canread()
 {
   Can0.read(inMsg);
@@ -2720,7 +2745,7 @@ void canread()
         break;
     }
   }
-  if (settings.curcan == 2)
+  else if (settings.curcan == 2)
   {
     switch (inMsg.id)
     {
@@ -2736,28 +2761,41 @@ void canread()
       default:
         break;
     }
-  }
+  } else if (settings.curcan == 3)
+	{
+		if(pgnFromCANId(inMsg.id) == 0x1F214 && inMsg.buf[0] == 0) // Check PGN and only use the first packet of each sequence
+		{
+			handleVictronLynx();
+		}
+	}
   if (candebug == 1)
   {
-    Serial.print(millis());
-    if ((inMsg.id & 0x80000000) == 0x80000000)    // Determine if ID is standard (11 bits) or extended (29 bits)
-      sprintf(msgString, "Extended ID: 0x%.8lX  DLC: %1d  Data:", (inMsg.id & 0x1FFFFFFF), inMsg.len);
+		int pgn = 0;
+    if ((inMsg.id & 0x10000000) == 0x10000000)    // Determine if ID is standard (11 bits) or extended (29 bits)
+		{
+			pgn = pgnFromCANId(inMsg.id);
+      sprintf(msgString, "Extended ID: 0x%.8lX (pgn 0x%.5lX)  DLC: %1d  Data:", (inMsg.id & 0x1FFFFFFF), pgn, inMsg.len);
+		}
     else
+		{
       sprintf(msgString, ",0x%.3lX,false,%1d", inMsg.id, inMsg.len);
+		}
 
-    Serial.print(msgString);
+		if(pgn == 0x1F214) {
+	    Serial.print(millis());
+	    Serial.print(msgString);
 
-    if ((inMsg.id & 0x40000000) == 0x40000000) {  // Determine if message is a remote request frame.
-      sprintf(msgString, " REMOTE REQUEST FRAME");
-      Serial.print(msgString);
-    } else {
-      for (byte i = 0; i < inMsg.len; i++) {
-        sprintf(msgString, ", 0x%.2X", inMsg.buf[i]);
-        Serial.print(msgString);
-      }
-    }
-
-    Serial.println();
+	    if ((inMsg.id & 0x40000000) == 0x40000000) {  // Determine if message is a remote request frame.
+	      sprintf(msgString, " REMOTE REQUEST FRAME");
+	      Serial.print(msgString);
+	    } else {
+	      for (byte i = 0; i < inMsg.len; i++) {
+	        sprintf(msgString, ", 0x%.2X", inMsg.buf[i]);
+	        Serial.print(msgString);
+	      }
+	    }
+			Serial.println();			
+		}
   }
 }
 
@@ -2781,6 +2819,24 @@ void CAB300()
     RawCur = CANmilliamps;
     getcurrent();
   }
+  if (candebug == 1)
+  {
+    Serial.println();
+    Serial.print(CANmilliamps);
+    Serial.print("mA ");
+  }
+}
+
+void handleVictronLynx()
+{
+	int16_t current = (int)inMsg.buf[4] << 8; // in 0.1A increments
+	current |= inMsg.buf[3];
+	CANmilliamps = current * 100;
+	if (settings.cursens == Canbus)
+	{
+		RawCur = CANmilliamps;
+		getcurrent();
+	}
   if (candebug == 1)
   {
     Serial.println();
