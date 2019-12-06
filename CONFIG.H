@@ -91,9 +91,9 @@ typedef struct {
   uint16_t UnderDur;
   uint16_t CurDead;
   float DisTaper;
-  bool ChargerDirect;
-  bool ExpMess;
-  bool SerialCan;
+  uint8_t ChargerDirect; // bool
+  uint8_t ExpMess; // bool
+  uint8_t SerialCan; // bool
   uint16_t PulseCh;
   uint16_t PulseChDur;
   uint16_t PulseDi;
