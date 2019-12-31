@@ -47,6 +47,7 @@ typedef struct {
   uint8_t logLevel;
   float OverVSetpoint;
   float UnderVSetpoint;
+  float DischHys;
   float ChargeVsetpoint;
   float DischVsetpoint;
   float ChargeHys;

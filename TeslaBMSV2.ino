@@ -194,6 +194,7 @@ void loadSettings()
   settings.ChargeHys = 0.2f; // voltage drop required for charger to kick back on
   settings.WarnOff = 0.1f; //voltage offset to raise a warning
   settings.DischVsetpoint = 3.2f;
+  settings.DischHys = 0.2f; // Discharge voltage offset
   settings.CellGap = 0.2f; //max delta between high and low cell
   settings.OverTSetpoint = 65.0f;
   settings.UnderTSetpoint = -10.0f;
@@ -500,10 +501,13 @@ void loop()
         }
         else
         {
-          digitalWrite(OUT1, HIGH);//turn on discharge
-          if (Pretimer1 + settings.Pretime < millis())
+          if (bms.getLowCellVolt() > settings.DischVsetpoint + settings.DischHys)
           {
-            contctrl = contctrl | 1;
+            digitalWrite(OUT1, HIGH);//turn on discharge
+            if (Pretimer1 + settings.Pretime < millis())
+            {
+              contctrl = contctrl | 1;
+            }
           }
         }
         if (SOCset == 1)
@@ -1219,12 +1223,12 @@ void updateSOC()
   if (SOCset == 0)
   {
     SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
-            if (debug != 0)
-        {
-    SERIALCONSOLE.print("  ");
-    SERIALCONSOLE.print(SOC);
-    SERIALCONSOLE.print("  ");
-        }
+    if (debug != 0)
+    {
+      SERIALCONSOLE.print("  ");
+      SERIALCONSOLE.print(SOC);
+      SERIALCONSOLE.print("  ");
+    }
     ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
     SOCset = 1;
   }
@@ -1389,11 +1393,11 @@ void contcon()
       {
         if (conttimer2 == 0)
         {
-                  if (debug != 0)
-        {
-          Serial.println();
-          Serial.println("pull in OUT6");
-        }
+          if (debug != 0)
+          {
+            Serial.println();
+            Serial.println("pull in OUT6");
+          }
           analogWrite(OUT6, 255);
           conttimer2 = millis() + pulltime ;
         }
@@ -1411,11 +1415,11 @@ void contcon()
       {
         if (conttimer3 == 0)
         {
-                  if (debug != 0)
-        {
-          Serial.println();
-          Serial.println("pull in OUT7");
-        }
+          if (debug != 0)
+          {
+            Serial.println();
+            Serial.println("pull in OUT7");
+          }
           analogWrite(OUT7, 255);
           conttimer3 = millis() + pulltime ;
         }
@@ -2212,6 +2216,16 @@ void menu()
         }
         break;
 
+      case 'k': //Discharge Voltage hysteresis
+        if (Serial.available() > 0)
+        {
+          settings.DischHys = Serial.parseInt();
+          settings.DischHys  = settings.DischHys  / 1000;
+          menuload = 1;
+          incomingByte = 'b';
+        }
+        break;
+
       case '0': //c Pstrings
         if (Serial.available() > 0)
         {
@@ -2684,6 +2698,10 @@ void menu()
         SERIALCONSOLE.print("j - Discharge Current Temperature Derate : ");
         SERIALCONSOLE.print(settings.DisTSetpoint);
         SERIALCONSOLE.print("C");
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.print("k - Cell Discharge Voltage Hysteresis: ");
+        SERIALCONSOLE.print(settings.DischHys * 1000, 0);
+        SERIALCONSOLE.print("mV");
         SERIALCONSOLE.println("  ");
 
         SERIALCONSOLE.println();
