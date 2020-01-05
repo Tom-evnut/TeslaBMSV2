@@ -106,9 +106,9 @@ int16_t pwmcurmin = 0;//DONOT fill in, calculated later based on other values
 
 //variables for VE can
 uint16_t chargevoltage = 49100; //max charge voltage in mv
-int chargecurrent = 0;
+uint16_t  chargecurrent = 0;
 uint16_t disvoltage = 42000; // max discharge voltage in mv
-int discurrent = 0;
+uint16_t  discurrent = 0;
 int batvcal = 0;
 
 uint16_t SOH = 100; // SOH place holder
