@@ -153,6 +153,7 @@ float chargerendbulk = 0; //V before Charge Voltage to turn off the bulk charger
 float chargerend = 0; //V before Charge Voltage to turn off the finishing charger/s
 int chargertoggle = 0;
 int ncharger = 1; // number of chargers
+bool chargecurrentlimit = 0;
 
 //serial canbus expansion
 unsigned long id = 0;
@@ -214,6 +215,7 @@ void loadSettings()
   settings.discurrentmax = 300; // max discharge current in 0.1A
   settings.DisTaper = 0.3f; //V offset to bring in discharge taper to Zero Amps at settings.DischVsetpoint
   settings.chargecurrentmax = 300; //max charge current in 0.1A
+  settings.chargecurrent2max = 150; //max charge current in 0.1A
   settings.chargecurrentend = 50; //end charge current in 0.1A
   settings.PulseCh = 600; //Peak Charge current in 0.1A
   settings.PulseChDur = 5000; //Ms of discharge pulse derating
@@ -620,6 +622,14 @@ void loop()
 
         case (Charge):
           Discharge = 0;
+          if (digitalRead(IN2) == HIGH)
+          {
+            chargecurrentlimit = true;
+          }
+          else
+          {
+            chargecurrentlimit = false;
+          }
           digitalWrite(OUT3, HIGH);//enable charger
           if (bms.getHighCellVolt() > settings.balanceVoltage)
           {
@@ -1019,6 +1029,18 @@ void printbmsstat()
   SERIALCONSOLE.print(digitalRead(IN2));
   SERIALCONSOLE.print(digitalRead(IN3));
   SERIALCONSOLE.print(digitalRead(IN4));
+
+  if (bmsstatus == Charge)
+  {
+    if (chargecurrentlimit == false)
+    {
+      SERIALCONSOLE.print("  No Charge Current Limit");
+    }
+    else
+    {
+      SERIALCONSOLE.print("  Charge Current Limit Active");
+    }
+  }
 }
 
 
@@ -1985,6 +2007,15 @@ void menu()
         }
         break;
 
+      case 'a':
+        if (Serial.available() > 0)
+        {
+          settings.chargecurrent2max = Serial.parseInt() * 10;
+          menuload = 1;
+          incomingByte = 'e';
+        }
+        break;
+
       case '5': //1 Over Voltage Setpoint
         settings.chargertype = settings.chargertype + 1;
         if (settings.chargertype > 6)
@@ -2443,6 +2474,12 @@ void menu()
         SERIALCONSOLE.print("9 - Charge Current derate Low: ");
         SERIALCONSOLE.print(settings.ChargeTSetpoint);
         SERIALCONSOLE.println(" C");
+        if (settings.chargertype > 0)
+        {
+          SERIALCONSOLE.print("a - Alternate Pack Max Charge Current: ");
+          SERIALCONSOLE.print(settings.chargecurrent2max * 0.1);
+          SERIALCONSOLE.println("A");
+        }
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 6;
         break;
@@ -2839,7 +2876,14 @@ void currentlimit()
 
     ///Start at no derating///
     discurrent = settings.discurrentmax;
-    chargecurrent = settings.chargecurrentmax;
+    if (chargecurrentlimit == false)
+    {
+      chargecurrent = settings.chargecurrentmax;
+    }
+    else
+    {
+      chargecurrent = settings.chargecurrent2max;
+    }
 
 
     ///////All hard limits to into zeros
@@ -2882,7 +2926,7 @@ void currentlimit()
       {
         if (bms.getLowCellVolt() < (settings.DischVsetpoint + settings.DisTaper))
         {
-          discurrent = discurrent - map(bms.getLowCellVolt(), settings.DischVsetpoint, (settings.DischVsetpoint + settings.DisTaper), settings.chargecurrentmax, 0);
+          discurrent = discurrent - map(bms.getLowCellVolt(), settings.DischVsetpoint, (settings.DischVsetpoint + settings.DisTaper), settings.discurrentmax, 0);
         }
       }
 
@@ -2891,28 +2935,53 @@ void currentlimit()
     //Modifying Charge current///
     if (chargecurrent > 0)
     {
-      //Temperature based///
-      if (bms.getLowTemperature() < settings.ChargeTSetpoint)
+      if (chargecurrentlimit == false)
       {
-        chargecurrent = chargecurrent - map(bms.getLowTemperature(), settings.UnderTSetpoint, settings.ChargeTSetpoint, settings.chargecurrentmax, 0);
-      }
-      //Voltagee based///
-      if (storagemode == 1)
-      {
-        if (bms.getHighCellVolt() > (settings.StoreVsetpoint - settings.ChargeHys))
+        //Temperature based///
+        if (bms.getLowTemperature() < settings.ChargeTSetpoint)
         {
-          chargecurrent = chargecurrent - map(bms.getHighCellVolt(), (settings.StoreVsetpoint - settings.ChargeHys), settings.StoreVsetpoint, settings.chargecurrentend, settings.chargecurrentmax);
+          chargecurrent = chargecurrent - map(bms.getLowTemperature(), settings.UnderTSetpoint, settings.ChargeTSetpoint, settings.chargecurrentmax, 0);
+        }
+        //Voltagee based///
+        if (storagemode == 1)
+        {
+          if (bms.getHighCellVolt() > (settings.StoreVsetpoint - settings.ChargeHys))
+          {
+            chargecurrent = chargecurrent - map(bms.getHighCellVolt(), (settings.StoreVsetpoint - settings.ChargeHys), settings.StoreVsetpoint, settings.chargecurrentend, settings.chargecurrentmax);
+          }
+        }
+        else
+        {
+          if (bms.getHighCellVolt() > (settings.ChargeVsetpoint - settings.ChargeHys))
+          {
+            chargecurrent = chargecurrent - map(bms.getHighCellVolt(), (settings.ChargeVsetpoint - settings.ChargeHys), settings.ChargeVsetpoint, settings.chargecurrentend, settings.chargecurrentmax);
+          }
         }
       }
       else
       {
-        if (bms.getHighCellVolt() > (settings.ChargeVsetpoint - settings.ChargeHys))
+        //Temperature based///
+        if (bms.getLowTemperature() < settings.ChargeTSetpoint)
         {
-          chargecurrent = chargecurrent - map(bms.getHighCellVolt(), (settings.ChargeVsetpoint - settings.ChargeHys), settings.ChargeVsetpoint, settings.chargecurrentend, settings.chargecurrentmax);
+          chargecurrent = chargecurrent - map(bms.getLowTemperature(), settings.UnderTSetpoint, settings.ChargeTSetpoint, settings.chargecurrent2max, 0);
+        }
+        //Voltagee based///
+        if (storagemode == 1)
+        {
+          if (bms.getHighCellVolt() > (settings.StoreVsetpoint - settings.ChargeHys))
+          {
+            chargecurrent = chargecurrent - map(bms.getHighCellVolt(), (settings.StoreVsetpoint - settings.ChargeHys), settings.StoreVsetpoint, settings.chargecurrentend, settings.chargecurrent2max);
+          }
+        }
+        else
+        {
+          if (bms.getHighCellVolt() > (settings.ChargeVsetpoint - settings.ChargeHys))
+          {
+            chargecurrent = chargecurrent - map(bms.getHighCellVolt(), (settings.ChargeVsetpoint - settings.ChargeHys), settings.ChargeVsetpoint, settings.chargecurrentend, settings.chargecurrent2max);
+          }
         }
       }
     }
-
   }
   ///No negative currents///
 

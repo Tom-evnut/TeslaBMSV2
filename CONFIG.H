@@ -67,6 +67,7 @@ typedef struct {
   int Pstrings;
   int CAP;
   uint16_t  chargecurrentmax;
+  uint16_t  chargecurrent2max;
   uint16_t  chargecurrentend;
   uint16_t  discurrentmax ;
   int socvolt[4];
