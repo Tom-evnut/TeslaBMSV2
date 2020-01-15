@@ -29,7 +29,7 @@
 #include <FlexCAN.h> //https://github.com/collin80/FlexCAN_Library 
 #include <SPI.h>
 #include <Filters.h>//https://github.com/JonHub/Filters
-#include "Serial_CAN_Module_Teensy.h" //https://github.com/tomdebree/Serial_CAN_Teensy
+#include "Serial_CAN_Module_TeensyS2.h" //https://github.com/tomdebree/Serial_CAN_Teensy
 
 #define CPU_REBOOT (_reboot_Teensyduino_());
 
@@ -296,7 +296,7 @@ void setup()
   allPassFilter.ext = 1;
   allPassFilter.rtr = 0;
 
-  for(int filterNum = 4; filterNum < 16; filterNum++) {
+  for (int filterNum = 4; filterNum < 16; filterNum++) {
     Can0.setFilter(allPassFilter, filterNum);
   }
 
@@ -1535,50 +1535,30 @@ void VEcan() //communication with Victron system over CAN
   msg.buf[3] = highByte(chargecurrent);
   msg.buf[4] = lowByte(discurrent );
   msg.buf[5] = highByte(discurrent);
-  msg.buf[6] = lowByte(uint16_t((settings.DischVsetpoint * settings.Scells ) * 10));
-  msg.buf[7] = highByte(uint16_t((settings.DischVsetpoint * settings.Scells ) * 10));
+  msg.buf[6] = lowByte(uint16_t((settings.DischVsetpoint * settings.Scells) * 10));
+  msg.buf[7] = highByte(uint16_t((settings.DischVsetpoint * settings.Scells) * 10));
   Can0.write(msg);
 
   msg.id  = 0x355;
   msg.len = 8;
-  if (settings.ExpMess == false)
-  {
-    msg.buf[0] = lowByte(SOC);
-    msg.buf[1] = highByte(SOC);
-    msg.buf[2] = lowByte(SOH);
-    msg.buf[3] = highByte(SOH);
-    msg.buf[4] = lowByte(SOC * 10);
-    msg.buf[5] = highByte(SOC * 10);
-  }
-  else
-  {
-    msg.buf[0] = lowByte(bms.getBalancing());
-    msg.buf[1] = highByte(bms.getBalancing());
-    msg.buf[2] = lowByte(SOC);
-    msg.buf[3] = highByte(SOC);
-    msg.buf[4] = lowByte(bms.getBalancing() * 10);
-    msg.buf[5] = highByte(bms.getBalancing() * 10);
-  }
+  msg.buf[0] = lowByte(SOC);
+  msg.buf[1] = highByte(SOC);
+  msg.buf[2] = lowByte(SOH);
+  msg.buf[3] = highByte(SOH);
+  msg.buf[4] = lowByte(SOC * 10);
+  msg.buf[5] = highByte(SOC * 10);
   msg.buf[6] = 0;
   msg.buf[7] = 0;
   Can0.write(msg);
 
   msg.id  = 0x356;
   msg.len = 8;
-  if (settings.ExpMess == false)
-  {
-    msg.buf[0] = lowByte(uint16_t(bms.getPackVoltage() * 100));
-    msg.buf[1] = highByte(uint16_t(bms.getPackVoltage() * 100));
-  }
-  else
-  {
-    msg.buf[0] = lowByte(uint16_t((bms.getHighCellVolt() - bms.getLowCellVolt()) * 100));
-    msg.buf[1] = highByte(uint16_t((bms.getHighCellVolt() - bms.getLowCellVolt()) * 100));
-  }
+  msg.buf[0] = lowByte(uint16_t(bms.getPackVoltage() * 100));
+  msg.buf[1] = highByte(uint16_t(bms.getPackVoltage() * 100));
   msg.buf[2] = lowByte(long(currentact / 100));
   msg.buf[3] = highByte(long(currentact / 100));
-  msg.buf[4] = lowByte(uint16_t(bms.getAvgTemperature() * 10));
-  msg.buf[5] = highByte(uint16_t(bms.getAvgTemperature() * 10));
+  msg.buf[4] = lowByte(int16_t(bms.getAvgTemperature() * 10));
+  msg.buf[5] = highByte(int16_t(bms.getAvgTemperature() * 10));
   msg.buf[6] = 0;
   msg.buf[7] = 0;
   Can0.write(msg);
@@ -1621,8 +1601,34 @@ void VEcan() //communication with Victron system over CAN
   msg.buf[7] = bmsmanu[7];
   Can0.write(msg);
 
+  if (balancecells == 1)
+  {
+    if (bms.getLowCellVolt() + settings.balanceHyst < bms.getHighCellVolt())
+    {
+      msg.id  = 0x3c3;
+      msg.len = 8;
+      if (bms.getLowCellVolt() < settings.balanceVoltage)
+      {
+        msg.buf[0] = highByte(uint16_t(settings.balanceVoltage * 1000));
+        msg.buf[1] = lowByte(uint16_t(settings.balanceVoltage * 1000));
+      }
+      else
+      {
+        msg.buf[0] = highByte(uint16_t(bms.getLowCellVolt() * 1000));
+        msg.buf[1] = lowByte(uint16_t(bms.getLowCellVolt() * 1000));
+      }
+      msg.buf[2] =  0x01;
+      msg.buf[3] =  0x04;
+      msg.buf[4] =  0x03;
+      msg.buf[5] =  0x00;
+      msg.buf[6] =  0x00;
+      msg.buf[7] = 0x00;
+      Can0.write(msg);
+    }
+  }
+
   delay(2);
-  msg.id  = 0x35F;
+  msg.id  = 0x373;
   msg.len = 8;
   msg.buf[0] = 0x00;
   msg.buf[1] = 0x00;
@@ -1632,7 +1638,40 @@ void VEcan() //communication with Victron system over CAN
   msg.buf[5] = highByte(settings.CAP);
   msg.buf[6] = 0x99;
   msg.buf[7] = 0x01;
+
+  delay(2);
+  msg.id  = 0x373;
+  msg.len = 8;
+  msg.buf[0] = lowByte(uint16_t(bms.getLowCellVolt() * 1000));
+  msg.buf[1] = highByte(uint16_t(bms.getLowCellVolt() * 1000));
+  msg.buf[2] = lowByte(uint16_t(bms.getHighCellVolt() * 1000));
+  msg.buf[3] = highByte(uint16_t(bms.getHighCellVolt() * 1000));
+  msg.buf[4] = lowByte(uint16_t(bms.getLowTemperature() + 273.15));
+  msg.buf[5] = highByte(uint16_t(bms.getLowTemperature() + 273.15));
+  msg.buf[6] = lowByte(uint16_t(bms.getHighTemperature() + 273.15));
+  msg.buf[7] = highByte(uint16_t(bms.getHighTemperature() + 273.15));
   Can0.write(msg);
+
+  delay(2);
+  msg.id  = 0x379; //Installed capacity
+  msg.len = 2;
+  msg.buf[0] = lowByte(uint16_t(settings.Pstrings * settings.CAP));
+  msg.buf[1] = highByte(uint16_t(settings.Pstrings * settings.CAP));
+  /*
+      delay(2);
+    msg.id  = 0x378; //Installed capacity
+    msg.len = 2;
+    //energy in 100wh/unit
+    msg.buf[0] =
+    msg.buf[1] =
+    msg.buf[2] =
+    msg.buf[3] =
+    //energy out 100wh/unit
+    msg.buf[4] =
+    msg.buf[5] =
+    msg.buf[6] =
+    msg.buf[7] =
+  */
 }
 
 // Settings menu
@@ -1860,10 +1899,10 @@ void menu()
         break;
 
       case '7': //s for switch sensor
-				settings.curcan++;
-				if(settings.curcan > CurCanMax) {
-					settings.curcan = 1;
-				}
+        settings.curcan++;
+        if (settings.curcan > CurCanMax) {
+          settings.curcan = 1;
+        }
         menuload = 1;
         incomingByte = 'c';
         break;
@@ -2653,10 +2692,10 @@ void menu()
           {
             SERIALCONSOLE.println(" IsaScale IVT-S ");
           }
-					else if (settings.curcan == VictronLynx)
-					{
-						SERIALCONSOLE.println(" Victron Lynx VE.CAN Shunt");
-					}
+          else if (settings.curcan == VictronLynx)
+          {
+            SERIALCONSOLE.println(" Victron Lynx VE.CAN Shunt");
+          }
         }
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 2;
@@ -2787,16 +2826,16 @@ void menu()
   }
 }
 
-int pgnFromCANId(int canId) 
+int pgnFromCANId(int canId)
 {
-	if((canId & 0x10000000) == 0x10000000)
-	{
-		return (canId & 0x03FFFF00) >> 8;
-	}
-	else
-	{
-		return canId; // not sure if this is really right?
-	}
+  if ((canId & 0x10000000) == 0x10000000)
+  {
+    return (canId & 0x03FFFF00) >> 8;
+  }
+  else
+  {
+    return canId; // not sure if this is really right?
+  }
 }
 
 void canread()
@@ -2831,40 +2870,40 @@ void canread()
         break;
     }
   } else if (settings.curcan == 3)
-	{
-		if(pgnFromCANId(inMsg.id) == 0x1F214 && inMsg.buf[0] == 0) // Check PGN and only use the first packet of each sequence
-		{
-			handleVictronLynx();
-		}
-	}
+  {
+    if (pgnFromCANId(inMsg.id) == 0x1F214 && inMsg.buf[0] == 0) // Check PGN and only use the first packet of each sequence
+    {
+      handleVictronLynx();
+    }
+  }
   if (candebug == 1)
   {
-		int pgn = 0;
+    int pgn = 0;
     if ((inMsg.id & 0x10000000) == 0x10000000)    // Determine if ID is standard (11 bits) or extended (29 bits)
-		{
-			pgn = pgnFromCANId(inMsg.id);
+    {
+      pgn = pgnFromCANId(inMsg.id);
       sprintf(msgString, "Extended ID: 0x%.8lX (pgn 0x%.5lX)  DLC: %1d  Data:", (inMsg.id & 0x1FFFFFFF), pgn, inMsg.len);
-		}
+    }
     else
-		{
+    {
       sprintf(msgString, ",0x%.3lX,false,%1d", inMsg.id, inMsg.len);
-		}
+    }
 
-		if(pgn == 0x1F214) {
-	    Serial.print(millis());
-	    Serial.print(msgString);
+    if (pgn == 0x1F214) {
+      Serial.print(millis());
+      Serial.print(msgString);
 
-	    if ((inMsg.id & 0x40000000) == 0x40000000) {  // Determine if message is a remote request frame.
-	      sprintf(msgString, " REMOTE REQUEST FRAME");
-	      Serial.print(msgString);
-	    } else {
-	      for (byte i = 0; i < inMsg.len; i++) {
-	        sprintf(msgString, ", 0x%.2X", inMsg.buf[i]);
-	        Serial.print(msgString);
-	      }
-	    }
-			Serial.println();			
-		}
+      if ((inMsg.id & 0x40000000) == 0x40000000) {  // Determine if message is a remote request frame.
+        sprintf(msgString, " REMOTE REQUEST FRAME");
+        Serial.print(msgString);
+      } else {
+        for (byte i = 0; i < inMsg.len; i++) {
+          sprintf(msgString, ", 0x%.2X", inMsg.buf[i]);
+          Serial.print(msgString);
+        }
+      }
+      Serial.println();
+    }
   }
 }
 
@@ -2898,15 +2937,15 @@ void CAB300()
 
 void handleVictronLynx()
 {
-	if(inMsg.buf[4] == 0xff && inMsg.buf[3] == 0xff) return;
-	int16_t current = (int)inMsg.buf[4] << 8; // in 0.1A increments
-	current |= inMsg.buf[3];
-	CANmilliamps = current * 100;
-	if (settings.cursens == Canbus)
-	{
-		RawCur = CANmilliamps;
-		getcurrent();
-	}
+  if (inMsg.buf[4] == 0xff && inMsg.buf[3] == 0xff) return;
+  int16_t current = (int)inMsg.buf[4] << 8; // in 0.1A increments
+  current |= inMsg.buf[3];
+  CANmilliamps = current * 100;
+  if (settings.cursens == Canbus)
+  {
+    RawCur = CANmilliamps;
+    getcurrent();
+  }
   if (candebug == 1)
   {
     Serial.println();
