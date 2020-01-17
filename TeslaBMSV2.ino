@@ -40,7 +40,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 200115;
+int firmver = 200117;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -1043,6 +1043,13 @@ void printbmsstat()
   SERIALCONSOLE.print(digitalRead(IN3));
   SERIALCONSOLE.print(digitalRead(IN4));
 
+
+  SERIALCONSOLE.print(" Charge Current Limit : ");
+  SERIALCONSOLE.print(chargecurrent*0.1,0);
+  SERIALCONSOLE.print(" A DisCharge Current Limit : ");
+  SERIALCONSOLE.print(discurrent*0.1,0);
+  SERIALCONSOLE.print(" A");
+
   if (bmsstatus == Charge)
   {
     if (chargecurrentlimit == false)
@@ -1054,6 +1061,7 @@ void printbmsstat()
       SERIALCONSOLE.print("  Charge Current Limit Active");
     }
   }
+
 }
 
 
