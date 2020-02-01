@@ -40,7 +40,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 200117;
+int firmver = 200201;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -689,7 +689,7 @@ void loop()
           {
             //if (cellspresent == bms.seriescells()) //detect a fault in cells detected
             //{
-            if (bms.getLowCellVolt() >= settings.UnderVSetpoint && bms.getHighCellVolt() >= settings.OverVSetpoint)
+            if (bms.getLowCellVolt() >= settings.UnderVSetpoint && bms.getHighCellVolt() <= settings.OverVSetpoint)
             {
               bmsstatus = Ready;
             }
