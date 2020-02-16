@@ -40,7 +40,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 200201;
+int firmver = 200216;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -685,17 +685,10 @@ void loop()
                       bmsstatus = Charge;
                     }
           */
-          if (digitalRead(IN1) == LOW)//Key OFF
+          if (bms.getLowCellVolt() > settings.UnderVSetpoint && bms.getHighCellVolt() < settings.OverVSetpoint)
           {
-            //if (cellspresent == bms.seriescells()) //detect a fault in cells detected
-            //{
-            if (bms.getLowCellVolt() >= settings.UnderVSetpoint && bms.getHighCellVolt() <= settings.OverVSetpoint)
-            {
-              bmsstatus = Ready;
-            }
-            //}
+            bmsstatus = Ready;
           }
-
           break;
       }
     }
@@ -1045,9 +1038,9 @@ void printbmsstat()
 
 
   SERIALCONSOLE.print(" Charge Current Limit : ");
-  SERIALCONSOLE.print(chargecurrent*0.1,0);
+  SERIALCONSOLE.print(chargecurrent * 0.1, 0);
   SERIALCONSOLE.print(" A DisCharge Current Limit : ");
-  SERIALCONSOLE.print(discurrent*0.1,0);
+  SERIALCONSOLE.print(discurrent * 0.1, 0);
   SERIALCONSOLE.print(" A");
 
   if (bmsstatus == Charge)
