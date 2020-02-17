@@ -40,7 +40,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 200216;
+int firmver = 200217;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -559,6 +559,10 @@ void loop()
           {
             digitalWrite(OUT2, LOW);//trip breaker
           }
+          if (bms.getLowCellVolt() > settings.UnderVSetpoint || bms.getHighCellVolt() < settings.OverVSetpoint || bms.getHighTemperature() < settings.OverTSetpoint)
+          {
+            bmsstatus = Boot;
+          }
         }
       }
 
@@ -708,7 +712,10 @@ void loop()
     {
       if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() < settings.UnderVSetpoint)
       {
-
+        bmsstatus = Error;
+      }
+      if (bms.getLowCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint)
+      {
         bmsstatus = Error;
       }
     }
