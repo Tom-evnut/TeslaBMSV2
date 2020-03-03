@@ -32,7 +32,6 @@ void BMSModule::clearmodule()
   moduleVolt = 0.0f;
   temperatures[0] = 0.0f;
   temperatures[1] = 0.0f;
-  temperatures[2] = 0.0f;
 }
 
 /*

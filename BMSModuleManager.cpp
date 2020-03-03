@@ -441,13 +441,13 @@ float BMSModuleManager::getAvgTemperature()
       if (modules[x].getAvgTemp() > -70)
       {
         avg += modules[x].getAvgTemp();
-        if (modules[x].getAvgTemp() > highTemp)
+        if (modules[x].getHighTemp() > highTemp)
         {
-          highTemp = modules[x].getAvgTemp();
+          highTemp = modules[x].getHighTemp();
         }
-        if (modules[x].getAvgTemp() < lowTemp)
+        if (modules[x].getLowTemp() < lowTemp)
         {
-          lowTemp = modules[x].getAvgTemp();
+          lowTemp = modules[x].getLowTemp();
         }
       }
       else
