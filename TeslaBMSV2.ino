@@ -40,7 +40,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 250220;
+int firmver = 90320;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -102,9 +102,8 @@ int Discharge;
 //variables for output control
 int pulltime = 100;
 int contctrl, contstat = 0; //1 = out 5 high 2 = out 6 high 3 = both high
-unsigned long conttimer1, conttimer2, conttimer3, Pretimer, Pretimer1 = 0;
+unsigned long conttimer1, conttimer2, conttimer3, Pretimer, Pretimer1, overtriptimer, undertriptimer = 0;
 uint16_t pwmfreq = 18000;//pwm frequency
-
 int pwmcurmax = 50;//Max current to be shown with pwm
 int pwmcurmid = 50;//Mid point for pwm dutycycle based on current
 int16_t pwmcurmin = 0;//DONOT fill in, calculated later based on other values
@@ -205,6 +204,7 @@ void loadSettings()
   settings.OverTSetpoint = 65.0f;
   settings.UnderTSetpoint = -10.0f;
   settings.ChargeTSetpoint = 0.0f;
+  settings.triptime = 500;//mS of delay before counting over or undervoltage
   settings.DisTSetpoint = 40.0f;
   settings.WarnToff = 5.0f; //temp offset before raising warning
   settings.IgnoreTemp = 0; // 0 - use both sensors, 1 or 2 only use that sensor
@@ -474,14 +474,18 @@ void loop()
         {
           if (bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.ChargeVsetpoint)
           {
-            digitalWrite(OUT3, LOW);//turn off charger
-            contctrl = contctrl & 253;
-            Pretimer = millis();
-            Charged = 1;
-            SOCcharged(2);
+            if ((millis() - overtriptimer) > settings.triptime)
+            {
+              digitalWrite(OUT3, LOW);//turn off charger
+              contctrl = contctrl & 253;
+              Pretimer = millis();
+              Charged = 1;
+              SOCcharged(2);
+            }
           }
           else
           {
+            overtriptimer = millis();
             if (Charged == 1)
             {
               if (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))
@@ -510,12 +514,16 @@ void loop()
         }
         if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getLowCellVolt() < settings.DischVsetpoint)
         {
-          digitalWrite(OUT1, LOW);//turn off discharge
-          contctrl = contctrl & 254;
-          Pretimer1 = millis();
+          if ((millis() - undertriptimer) > settings.triptime)
+          {
+            digitalWrite(OUT1, LOW);//turn off discharge
+            contctrl = contctrl & 254;
+            Pretimer1 = millis();
+          }
         }
         else
         {
+          undertriptimer = millis();
           if (bms.getLowCellVolt() > settings.DischVsetpoint + settings.DischHys)
           {
             digitalWrite(OUT1, HIGH);//turn on discharge
@@ -712,25 +720,39 @@ void loop()
     {
       if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() < settings.UnderVSetpoint)
       {
-        bmsstatus = Error;
-      }
-      if (bms.getLowCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint)
-      {
-        bmsstatus = Error;
-      }
-    }
-    else //In 'vehicle' mode
-    {
-      if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() < settings.UnderVSetpoint)
-      {
-        if (UnderTime > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
+        if (undertriptimer > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
         {
           bmsstatus = Error;
         }
       }
       else
       {
-        UnderTime = millis() + settings.UnderDur;
+        undertriptimer = millis() + settings.triptime;
+      }
+      if (bms.getLowCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint)
+      {
+        if (overtriptimer > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
+        {
+          bmsstatus = Error;
+        }
+      }
+      else
+      {
+        overtriptimer = millis() + settings.triptime;
+      }
+    }
+    else //In 'vehicle' mode
+    {
+      if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() < settings.UnderVSetpoint)
+      {
+        if (undertriptimer > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
+        {
+          bmsstatus = Error;
+        }
+      }
+      else
+      {
+        undertriptimer = millis() + settings.triptime;
       }
     }
 
@@ -1998,7 +2020,7 @@ void menu()
       case '4':
         if (Serial.available() > 0)
         {
-          settings.UnderDur = Serial.parseInt();
+          settings.triptime = Serial.parseInt();
           menuload = 1;
           incomingByte = 'a';
         }
@@ -2560,9 +2582,13 @@ void menu()
         SERIALCONSOLE.print("3 - Temp Warning Offset: ");
         SERIALCONSOLE.print(settings.WarnToff);
         SERIALCONSOLE.println(" C");
-        SERIALCONSOLE.print("4 - Temp Warning Offset: ");
-        SERIALCONSOLE.print(settings.UnderDur);
+        //SERIALCONSOLE.print("4 - Temp Warning delay: ");
+        //SERIALCONSOLE.print(settings.UnderDur);
+        //SERIALCONSOLE.println(" mS");
+        SERIALCONSOLE.print("4 - Over and Under Voltage Delay: ");
+        SERIALCONSOLE.print(settings.triptime);
         SERIALCONSOLE.println(" mS");
+
         menuload = 7;
         break;
 

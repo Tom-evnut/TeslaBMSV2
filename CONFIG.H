@@ -55,6 +55,7 @@ typedef struct {
   float WarnOff;
   float OverTSetpoint;
   float UnderTSetpoint;
+  uint16_t triptime;
   float ChargeTSetpoint;
   float DisTSetpoint;
   float WarnToff;
