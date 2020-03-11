@@ -40,7 +40,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 90320;
+int firmver = 110320;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -3007,7 +3007,15 @@ void currentlimit()
 
     ///Start at no derating///
     discurrent = settings.discurrentmax;
-    chargecurrent = settings.chargecurrentmax;
+
+    if (chargecurrentlimit == false)
+    {
+      chargecurrent = settings.chargecurrentmax;
+    }
+    else
+    {
+      chargecurrent = settings.chargecurrent2max;
+    }
 
 
     ///////All hard limits to into zeros
@@ -3057,26 +3065,53 @@ void currentlimit()
     }
 
     //Modifying Charge current///
+
     if (chargecurrent > 0)
     {
-      //Temperature based///
-      if (bms.getLowTemperature() < settings.ChargeTSetpoint)
+      if (chargecurrentlimit == false)
       {
-        chargecurrent = chargecurrent - map(bms.getLowTemperature(), settings.UnderTSetpoint, settings.ChargeTSetpoint, settings.chargecurrentmax, 0);
-      }
-      //Voltagee based///
-      if (storagemode == 1)
-      {
-        if (bms.getHighCellVolt() > (settings.StoreVsetpoint - settings.ChargeHys))
+        //Temperature based///
+        if (bms.getLowTemperature() < settings.ChargeTSetpoint)
         {
-          chargecurrent = chargecurrent - map(bms.getHighCellVolt(), (settings.StoreVsetpoint - settings.ChargeHys), settings.StoreVsetpoint, settings.chargecurrentend, settings.chargecurrentmax);
+          chargecurrent = chargecurrent - map(bms.getLowTemperature(), settings.UnderTSetpoint, settings.ChargeTSetpoint, settings.chargecurrentmax, 0);
+        }
+        //Voltagee based///
+        if (storagemode == 1)
+        {
+          if (bms.getHighCellVolt() > (settings.StoreVsetpoint - settings.ChargeHys))
+          {
+            chargecurrent = chargecurrent - map(bms.getHighCellVolt(), (settings.StoreVsetpoint - settings.ChargeHys), settings.StoreVsetpoint, settings.chargecurrentend, settings.chargecurrentmax);
+          }
+        }
+        else
+        {
+          if (bms.getHighCellVolt() > (settings.ChargeVsetpoint - settings.ChargeHys))
+          {
+            chargecurrent = chargecurrent - map(bms.getHighCellVolt(), (settings.ChargeVsetpoint - settings.ChargeHys), settings.ChargeVsetpoint, 0, (settings.chargecurrentmax - settings.chargecurrentend));
+          }
         }
       }
       else
       {
-        if (bms.getHighCellVolt() > (settings.ChargeVsetpoint - settings.ChargeHys))
+        //Temperature based///
+        if (bms.getLowTemperature() < settings.ChargeTSetpoint)
         {
-          chargecurrent = chargecurrent - map(bms.getHighCellVolt(), (settings.ChargeVsetpoint - settings.ChargeHys), settings.ChargeVsetpoint, 0, (settings.chargecurrentmax - settings.chargecurrentend));
+          chargecurrent = chargecurrent - map(bms.getLowTemperature(), settings.UnderTSetpoint, settings.ChargeTSetpoint, settings.chargecurrent2max, 0);
+        }
+        //Voltagee based///
+        if (storagemode == 1)
+        {
+          if (bms.getHighCellVolt() > (settings.StoreVsetpoint - settings.ChargeHys))
+          {
+            chargecurrent = chargecurrent - map(bms.getHighCellVolt(), (settings.StoreVsetpoint - settings.ChargeHys), settings.StoreVsetpoint, settings.chargecurrentend, settings.chargecurrent2max);
+          }
+        }
+        else
+        {
+          if (bms.getHighCellVolt() > (settings.ChargeVsetpoint - settings.ChargeHys))
+          {
+            chargecurrent = chargecurrent - map(bms.getHighCellVolt(), (settings.ChargeVsetpoint - settings.ChargeHys), settings.ChargeVsetpoint, 0, (settings.chargecurrent2max - settings.chargecurrentend));
+          }
         }
       }
     }
