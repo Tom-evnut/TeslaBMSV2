@@ -40,7 +40,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 110320;
+int firmver = 240320;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -646,6 +646,14 @@ void loop()
           break;
 
         case (Charge):
+          if (settings.ChargerDirect > 0)
+          {
+            Discharge = 0;
+            digitalWrite(OUT4, LOW);
+            digitalWrite(OUT2, LOW);
+            digitalWrite(OUT1, LOW);//turn off discharge
+            contctrl = 0; //turn off out 5 and 6
+          }
           Discharge = 0;
           if (digitalRead(IN2) == HIGH)
           {
@@ -2271,6 +2279,7 @@ void menu()
           menuload = 1;
           incomingByte = 'b';
         }
+        break;
 
       case 'h':
         if (Serial.available() > 0)
@@ -2280,6 +2289,7 @@ void menu()
           menuload = 1;
           incomingByte = 'b';
         }
+        break;
 
       case 'j':
         if (Serial.available() > 0)
@@ -2288,6 +2298,7 @@ void menu()
           menuload = 1;
           incomingByte = 'b';
         }
+        break;
 
       case 'c':
         if (Serial.available() > 0)
