@@ -40,7 +40,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 310320;
+int firmver = 10420;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -659,7 +659,7 @@ void loop()
           {
             balancecells = 0;
           }
-          if (digitalRead(IN3) == HIGH && (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys)) && bms.getHighTemperature() < (settings.OverTSetpoint-settings.WarnToff)) //detect AC present for charging and check not balancing
+          if (digitalRead(IN3) == HIGH && (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys)) && bms.getHighTemperature() < (settings.OverTSetpoint - settings.WarnToff)) //detect AC present for charging and check not balancing
           {
             if (settings.ChargerDirect == 1)
             {
@@ -691,7 +691,7 @@ void loop()
           {
             bmsstatus = Ready;
           }
-          if (digitalRead(IN3) == HIGH && (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys)) && bms.getHighTemperature() < (settings.OverTSetpoint-settings.WarnToff)) //detect AC present for charging and check not balancing
+          if (digitalRead(IN3) == HIGH && (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys)) && bms.getHighTemperature() < (settings.OverTSetpoint - settings.WarnToff)) //detect AC present for charging and check not balancing
           {
             bmsstatus = Charge;
           }
@@ -818,7 +818,7 @@ void loop()
 
       if (bms.getHighCellVolt() < settings.UnderVSetpoint || bms.getHighTemperature() > settings.OverTSetpoint)
       {
-      bmsstatus = Error;
+        bmsstatus = Error;
       }
     }
 
@@ -1353,15 +1353,22 @@ void updateSOC()
 {
   if (SOCset == 0)
   {
-    SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
-    if (debug != 0)
+    if (millis() > 9000)
     {
-      SERIALCONSOLE.print("  ");
-      SERIALCONSOLE.print(SOC);
-      SERIALCONSOLE.print("  ");
+      bms.setSensors(settings.IgnoreTemp, settings.IgnoreVolt);
     }
-    ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
-    SOCset = 1;
+    if (millis() > 10000)
+    {
+      SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
+
+      ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
+      SOCset = 1;
+      if (debug != 0)
+      {
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.println("//////////////////////////////////////// SOC SET ////////////////////////////////////////");
+      }
+    }
   }
   /*
     if (settings.cursens == 1)
@@ -1377,7 +1384,9 @@ void updateSOC()
 
     ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
   }
+
   SOC = ((ampsecond * 0.27777777777778) / (settings.CAP * settings.Pstrings * 1000)) * 100;
+
   if (SOC >= 100)
   {
     ampsecond = (settings.CAP * settings.Pstrings * 1000) / 0.27777777777778 ; //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
