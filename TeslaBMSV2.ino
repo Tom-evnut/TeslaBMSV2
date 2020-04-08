@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 20420;
+int firmver = 80420;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -437,7 +437,7 @@ void loop()
               Serial.println("Main On!!!");
               Serial.println();
             }
-            if (mainconttimer + settings.Pretime + 500 < millis() )
+            if (mainconttimer + settings.Pretime + 1000 < millis() )
             {
               digitalWrite(OUT4, LOW);//ensure precharge is low
             }
