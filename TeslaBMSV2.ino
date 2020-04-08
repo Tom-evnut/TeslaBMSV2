@@ -31,10 +31,14 @@
 #include <Filters.h>//https://github.com/JonHub/Filters
 #include "Serial_CAN_Module_TeensyS2.h" //https://github.com/tomdebree/Serial_CAN_Teensy
 
+/*
+#define CPU_REBOOT (_reboot_Teensyduino_());
+*/
 #define RESTART_ADDR       0xE000ED0C
 #define READ_RESTART()     (*(volatile uint32_t *)RESTART_ADDR)
 #define WRITE_RESTART(val) ((*(volatile uint32_t *)RESTART_ADDR) = (val))
 #define CPU_REBOOT WRITE_RESTART(0x5FA0004)
+
 
 Serial_CAN can;
 BMSModuleManager bms;
@@ -265,7 +269,8 @@ uint32_t lastUpdate;
 
 void setup()
 {
-  delay(500);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
+  SERIALBMS.begin(612500); //Tesla serial bus
+  delay(2000);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
   pinMode(ACUR1, INPUT);
   pinMode(ACUR2, INPUT);
   pinMode(IN1, INPUT);
@@ -352,7 +357,7 @@ void setup()
   interrupts();
   /////////////////
 
-  SERIALBMS.begin(612500); //Tesla serial bus
+  
   //VE.begin(19200); //Victron VE direct bus
 #if defined (__arm__) && defined (__SAM3X8E__)
   serialSpecialInit(USART0, 612500); //required for Due based boards as the stock core files don't support 612500 baud.
@@ -367,6 +372,7 @@ void setup()
       loadSettings();
     }
   */
+  
   bms.renumberBoardIDs();
 
   Logger::setLoglevel(Logger::Off); //Debug = 0, Info = 1, Warn = 2, Error = 3, Off = 4
@@ -1359,7 +1365,7 @@ void updateSOC()
     {
       bms.setSensors(settings.IgnoreTemp, settings.IgnoreVolt);
     }
-    if (millis() > 10000)
+    if (millis() > 5000)
     {
       SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
 
