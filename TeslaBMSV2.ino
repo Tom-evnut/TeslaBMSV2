@@ -32,7 +32,7 @@
 #include "Serial_CAN_Module_TeensyS2.h" //https://github.com/tomdebree/Serial_CAN_Teensy
 
 /*
-#define CPU_REBOOT (_reboot_Teensyduino_());
+  #define CPU_REBOOT (_reboot_Teensyduino_());
 */
 #define RESTART_ADDR       0xE000ED0C
 #define READ_RESTART()     (*(volatile uint32_t *)RESTART_ADDR)
@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 80420;
+int firmver = 120420;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -357,7 +357,7 @@ void setup()
   interrupts();
   /////////////////
 
-  
+
   //VE.begin(19200); //Victron VE direct bus
 #if defined (__arm__) && defined (__SAM3X8E__)
   serialSpecialInit(USART0, 612500); //required for Due based boards as the stock core files don't support 612500 baud.
@@ -372,7 +372,7 @@ void setup()
       loadSettings();
     }
   */
-  
+
   bms.renumberBoardIDs();
 
   Logger::setLoglevel(Logger::Off); //Debug = 0, Info = 1, Warn = 2, Error = 3, Off = 4
@@ -430,12 +430,13 @@ void loop()
               Serial.println(mainconttimer);
               Serial.println();
             }
-            if (mainconttimer + settings.Pretime < millis() && digitalRead(OUT2) == LOW)
+            if (mainconttimer + settings.Pretime < millis() && digitalRead(OUT2) == LOW && abs(currentact) < settings.Precurrent)
             {
               digitalWrite(OUT2, HIGH);//turn on contactor
               Serial.println();
               Serial.println("Main On!!!");
               Serial.println();
+              mainconttimer = millis() + settings.Pretime;
             }
             if (mainconttimer + settings.Pretime + 1000 < millis() )
             {
