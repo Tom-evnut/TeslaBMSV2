@@ -386,6 +386,11 @@ float BMSModuleManager::getLowCellVolt()
   return LowCellVolt;
 }
 
+int BMSModuleManager::getNumModules()
+{
+  return numFoundModules;
+}
+
 float BMSModuleManager::getHighCellVolt()
 {
   return HighCellVolt;

@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 300420;
+int firmver = 200520;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -1747,18 +1747,6 @@ void VEcan() //communication with Victron system over CAN
   delay(2);
   msg.id  = 0x373;
   msg.len = 8;
-  msg.buf[0] = 0x00;
-  msg.buf[1] = 0x00;
-  msg.buf[2] = 0x02;///firmware high
-  msg.buf[3] = 0x01;///firmware low
-  msg.buf[4] = lowByte(settings.CAP);
-  msg.buf[5] = highByte(settings.CAP);
-  msg.buf[6] = 0x99;
-  msg.buf[7] = 0x01;
-
-  delay(2);
-  msg.id  = 0x373;
-  msg.len = 8;
   msg.buf[0] = lowByte(uint16_t(bms.getLowCellVolt() * 1000));
   msg.buf[1] = highByte(uint16_t(bms.getLowCellVolt() * 1000));
   msg.buf[2] = lowByte(uint16_t(bms.getHighCellVolt() * 1000));
@@ -1789,6 +1777,19 @@ void VEcan() //communication with Victron system over CAN
     msg.buf[6] =
     msg.buf[7] =
   */
+  delay(2);
+  msg.id  = 0x372;
+  msg.len = 8;
+  msg.buf[0] = lowByte(bms.getNumModules());
+  msg.buf[1] = highByte(bms.getNumModules());
+  msg.buf[2] = 0x00;
+  msg.buf[3] = 0x00;
+  msg.buf[4] = 0x00;
+  msg.buf[5] = 0x00;
+  msg.buf[6] = 0x00;
+  msg.buf[7] = 0x00;
+  Can0.write(msg);
+
 }
 
 // Settings menu

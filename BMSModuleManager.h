@@ -42,7 +42,7 @@ class BMSModuleManager
     void printAllCSV(unsigned long timestamp,float current, int SOC);
     void printPackSummary();
     void printPackDetails(int digits);
-
+int getNumModules();
 
   private:
     float packVolt;                         // All modules added together
