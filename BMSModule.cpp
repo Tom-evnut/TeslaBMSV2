@@ -245,7 +245,7 @@ float BMSModule::getLowCellV()
 float BMSModule::getHighCellV()
 {
   float hiVal = 0.0f;
-  for (int i = 0; i < 6; i++) if (cellVolt[i] > hiVal) hiVal = cellVolt[i];
+  for (int i = 0; i < 6; i++) if (cellVolt[i] > hiVal && cellVolt[i] < 4.5) hiVal = cellVolt[i];
   return hiVal;
 }
 

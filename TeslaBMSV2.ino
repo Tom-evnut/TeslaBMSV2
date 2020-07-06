@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 300520;
+int firmver = 060720;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -832,6 +832,17 @@ void loop()
       {
         bmsstatus = Error;
       }
+      if (bms.getHighCellVolt() > settings.OverVSetpoint)
+        {
+          if (UnderTime > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
+          {
+            bmsstatus = Error;
+          }
+        }
+        else
+        {
+          UnderTime = millis() + settings.triptime;
+        }
     }
 
     balancing();
