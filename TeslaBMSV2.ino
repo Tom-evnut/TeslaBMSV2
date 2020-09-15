@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 060720;
+int firmver = 80820;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -168,6 +168,15 @@ bool chargecurrentlimit = 0;
 //serial canbus expansion
 unsigned long id = 0;
 unsigned char dta[8];
+
+//AC current control
+volatile uint32_t pilottimer = 0;
+volatile uint16_t timehigh, duration = 0;
+volatile uint16_t accurlim = 0;
+volatile int dutycycle = 0;
+uint16_t ACvolt = 240;
+uint16_t ChargerEff = 85;
+bool CPdebug = 0;
 
 //variables
 int outputstate = 0;
@@ -391,6 +400,11 @@ void setup()
   ///precharge timer kickers
   Pretimer = millis();
   Pretimer1  = millis();
+
+  // setup interrupts
+  //RISING/HIGH/CHANGE/LOW/FALLING
+  attachInterrupt (IN4, isrCP , CHANGE); // attach BUTTON 1 interrupt handler [ pin# 7 ]
+
 }
 
 void loop()
@@ -662,6 +676,7 @@ void loop()
           digitalWrite(OUT2, LOW);
           digitalWrite(OUT1, LOW);//turn off discharge
           contctrl = 0; //turn off out 5 and 6
+          accurlim = 0;
           if (bms.getHighCellVolt() > settings.balanceVoltage && bms.getHighCellVolt() > bms.getLowCellVolt() + settings.balanceHyst)
           {
             //bms.balanceCells();
@@ -699,6 +714,7 @@ void loop()
 
         case (Drive):
           Discharge = 1;
+          accurlim = 0;
           if (digitalRead(IN1) == LOW)//Key OFF
           {
             bmsstatus = Ready;
@@ -833,16 +849,16 @@ void loop()
         bmsstatus = Error;
       }
       if (bms.getHighCellVolt() > settings.OverVSetpoint)
+      {
+        if (UnderTime > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
         {
-          if (UnderTime > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
-          {
-            bmsstatus = Error;
-          }
+          bmsstatus = Error;
         }
-        else
-        {
-          UnderTime = millis() + settings.triptime;
-        }
+      }
+      else
+      {
+        UnderTime = millis() + settings.triptime;
+      }
     }
 
     balancing();
@@ -1161,18 +1177,19 @@ void printbmsstat()
   SERIALCONSOLE.print(discurrent * 0.1, 0);
   SERIALCONSOLE.print(" A");
 
-  if (bmsstatus == Charge)
+  if (bmsstatus == Charge || CPdebug == 1)
   {
+    Serial.print("  CP Current Limit: ");
+    Serial.print(accurlim);
     if (chargecurrentlimit == false)
     {
-      SERIALCONSOLE.print("  No Charge Current Limit");
+      SERIALCONSOLE.print("A  No Charge Current Limit");
     }
     else
     {
       SERIALCONSOLE.print("  Charge Current Limit Active");
     }
   }
-
 }
 
 
@@ -1881,6 +1898,13 @@ void menu()
         }
         incomingByte = 'd';
         break;
+
+      case '0':
+        menuload = 1;
+        CPdebug = !CPdebug;
+        incomingByte = 'd';
+        break;
+
 
       case 113: //q for quite menu
 
@@ -3493,6 +3517,12 @@ void balancing()
 
 void chargercomms()
 {
+  if (accurlim > 0)
+  {
+    uint16_t chargerpower = (accurlim*0.001) * ACvolt * ChargerEff*0.01;
+    chargecurrent = chargerpower/(settings.ChargeVsetpoint * settings.Scells);
+  }
+  
   if (settings.chargertype == Elcon)
   {
     msg.id  =  0x1806E5F4; //broadcast to all Elteks
@@ -3657,3 +3687,16 @@ void SerialCanRecieve()
     Serial.println();
   }
 }
+
+void isrCP ()
+{
+  if (  digitalRead(IN4) == HIGH)
+  {
+    duration = micros() - pilottimer;
+    pilottimer = micros();
+  }
+  else
+  {
+    accurlim = (micros() - pilottimer) * 100 / duration * 600; //Calculate the duty cycle then multiply by 600 to get mA current limit
+  }
+}  // ******** end of isr CP ********
