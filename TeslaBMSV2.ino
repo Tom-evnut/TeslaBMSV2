@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 80820;
+int firmver = 241020;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -447,17 +447,15 @@ void loop()
             if (mainconttimer + settings.Pretime < millis() && digitalRead(OUT2) == LOW && abs(currentact) < settings.Precurrent)
             {
               digitalWrite(OUT2, HIGH);//turn on contactor
+              contctrl = contctrl | 2; //turn on contactor
               Serial.println();
               Serial.println("Main On!!!");
               Serial.println();
-              mainconttimer = millis();
+              mainconttimer = millis() + settings.Pretime;
             }
-            if (mainconttimer + 1000 < millis() && digitalRead(OUT2) == HIGH && digitalRead(OUT4) == HIGH)
+            if (mainconttimer + settings.Pretime + 1000 < millis() )
             {
               digitalWrite(OUT4, LOW);//ensure precharge is low
-              Serial.println();
-              Serial.println("Precharge OFF!");
-              Serial.println();
             }
           }
           else
@@ -496,8 +494,8 @@ void loop()
           if (bms.getHighCellVolt() > settings.StoreVsetpoint)
           {
             digitalWrite(OUT3, LOW);//turn off charger
-            contctrl = contctrl & 253;
-            Pretimer = millis();
+            // contctrl = contctrl & 253;
+            // Pretimer = millis();
             Charged = 1;
             SOCcharged(2);
           }
@@ -509,21 +507,25 @@ void loop()
               {
                 Charged = 0;
                 digitalWrite(OUT3, HIGH);//turn on charger
-                if (Pretimer + settings.Pretime < millis())
-                {
+                /*
+                  if (Pretimer + settings.Pretime < millis())
+                  {
                   contctrl = contctrl | 2;
                   Pretimer = 0;
-                }
+                  }
+                */
               }
             }
             else
             {
               digitalWrite(OUT3, HIGH);//turn on charger
-              if (Pretimer + settings.Pretime < millis())
-              {
+              /*
+                if (Pretimer + settings.Pretime < millis())
+                {
                 contctrl = contctrl | 2;
                 Pretimer = 0;
-              }
+                }
+              */
             }
           }
         }
@@ -533,11 +535,17 @@ void loop()
           {
             if ((millis() - overtriptimer) > settings.triptime)
             {
-              digitalWrite(OUT3, LOW);//turn off charger
-              contctrl = contctrl & 253;
-              Pretimer = millis();
-              Charged = 1;
-              SOCcharged(2);
+              if (digitalRead(OUT3) == 1)
+              {
+                Serial.println();
+                Serial.println("Over Voltage Trip");
+                digitalWrite(OUT3, LOW);//turn off charger
+                // contctrl = contctrl & 253;
+                //Pretimer = millis();
+                Charged = 1;
+                SOCcharged(2);
+              }
+
             }
           }
           else
@@ -545,51 +553,80 @@ void loop()
             overtriptimer = millis();
             if (Charged == 1)
             {
+
               if (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))
               {
-                Charged = 0;
-                digitalWrite(OUT3, HIGH);//turn on charger
-                if (Pretimer + settings.Pretime < millis())
+                if (digitalRead(OUT3) == 0)
                 {
+                  Serial.println();
+                  Serial.println("Reset Over Voltage Trip Not Charged");
+                  Charged = 0;
+                  digitalWrite(OUT3, HIGH);//turn on charger
+                }
+                /*
+                  if (Pretimer + settings.Pretime < millis())
+                  {
                   // Serial.println();
                   //Serial.print(Pretimer);
                   contctrl = contctrl | 2;
-                }
+                  }*/
               }
+
             }
             else
             {
-              digitalWrite(OUT3, HIGH);//turn on charger
-              if (Pretimer + settings.Pretime < millis())
+              if (digitalRead(OUT3) == 0)
               {
+                Serial.println();
+                Serial.println("Reset Over Voltage Trip Not Charged");
+                digitalWrite(OUT3, HIGH);//turn on charger
+              }
+              /*
+                if (Pretimer + settings.Pretime < millis())
+                {
                 // Serial.println();
                 //Serial.print(Pretimer);
                 contctrl = contctrl | 2;
-              }
+                }*/
             }
           }
         }
+
         if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getLowCellVolt() < settings.DischVsetpoint)
         {
-          if ((millis() - undertriptimer) > settings.triptime)
+          if (digitalRead(OUT1) == 1)
           {
-            digitalWrite(OUT1, LOW);//turn off discharge
-            contctrl = contctrl & 254;
-            Pretimer1 = millis();
+
+            if ((millis() - undertriptimer) > settings.triptime)
+            {
+              Serial.println();
+              Serial.println("Under Voltage Trip");
+              digitalWrite(OUT1, LOW);//turn off discharge
+              // contctrl = contctrl & 254;
+              // Pretimer1 = millis();
+            }
           }
         }
         else
         {
           undertriptimer = millis();
+
           if (bms.getLowCellVolt() > settings.DischVsetpoint + settings.DischHys)
           {
-            digitalWrite(OUT1, HIGH);//turn on discharge
-            if (Pretimer1 + settings.Pretime < millis())
+            if (digitalRead(OUT1) == 0)
             {
-              contctrl = contctrl | 1;
+              Serial.println();
+              Serial.println("Reset Under Voltage Trip");
+              digitalWrite(OUT1, HIGH);//turn on discharge
             }
+            /*
+              if (Pretimer1 + settings.Pretime < millis())
+              {
+              contctrl = contctrl | 1;
+              }*/
           }
         }
+
         if (SOCset == 1)
         {
           if (settings.tripcont == 0)
@@ -608,6 +645,7 @@ void loop()
             if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighTemperature() > settings.OverTSetpoint)
             {
               digitalWrite(OUT2, LOW);//turn off contactor
+              contctrl = contctrl & 253; //turn off contactor
               digitalWrite(OUT4, LOW);//ensure precharge is low
             }
           }
@@ -616,35 +654,26 @@ void loop()
       }
       else
       {
-        /*
-          digitalWrite(OUT2, HIGH);//trip breaker
-          Discharge = 0;
-          digitalWrite(OUT4, LOW);
-          digitalWrite(OUT3, LOW);//turn off charger
-          digitalWrite(OUT2, LOW);
-          digitalWrite(OUT1, LOW);//turn off discharge
-          contctrl = 0; //turn off out 5 and 6
-        */
+
+        //digitalWrite(OUT2, HIGH);//trip breaker
+        Discharge = 0;
+        digitalWrite(OUT4, LOW);
+        digitalWrite(OUT3, LOW);//turn off charger
+        digitalWrite(OUT2, LOW);
+        digitalWrite(OUT1, LOW);//turn off discharge
+        contctrl = 0; //turn off out 5 and 6
+
         if (SOCset == 1)
         {
           if (settings.tripcont == 0)
           {
-            if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighTemperature() > settings.OverTSetpoint)
-            {
-              digitalWrite(OUT2, HIGH);//trip breaker
-            }
-            else
-            {
-              digitalWrite(OUT2, LOW);//trip breaker
-            }
+
+            digitalWrite(OUT2, HIGH);//trip breaker
           }
           else
           {
-            if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighTemperature() > settings.OverTSetpoint)
-            {
-              digitalWrite(OUT2, LOW);//turn off contactor
-              digitalWrite(OUT4, LOW);//ensure precharge is low
-            }
+            digitalWrite(OUT2, LOW);//turn off contactor
+            digitalWrite(OUT4, LOW);//ensure precharge is low
           }
           if (bms.getLowCellVolt() > settings.UnderVSetpoint || bms.getHighCellVolt() < settings.OverVSetpoint || bms.getHighTemperature() < settings.OverTSetpoint)
           {
@@ -3519,10 +3548,10 @@ void chargercomms()
 {
   if (accurlim > 0)
   {
-    uint16_t chargerpower = (accurlim*0.001) * ACvolt * ChargerEff*0.01;
-    chargecurrent = chargerpower/(settings.ChargeVsetpoint * settings.Scells);
+    uint16_t chargerpower = (accurlim * 0.001) * ACvolt * ChargerEff * 0.01;
+    chargecurrent = chargerpower / (settings.ChargeVsetpoint * settings.Scells);
   }
-  
+
   if (settings.chargertype == Elcon)
   {
     msg.id  =  0x1806E5F4; //broadcast to all Elteks
