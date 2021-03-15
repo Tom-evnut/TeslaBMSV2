@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 261020;
+int firmver = 210315;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -1774,32 +1774,6 @@ void VEcan() //communication with Victron system over CAN
   msg.buf[7] = bmsmanu[7];
   Can0.write(msg);
 
-  if (balancecells == 1)
-  {
-    if (bms.getLowCellVolt() + settings.balanceHyst < bms.getHighCellVolt())
-    {
-      msg.id  = 0x3c3;
-      msg.len = 8;
-      if (bms.getLowCellVolt() < settings.balanceVoltage)
-      {
-        msg.buf[0] = highByte(uint16_t(settings.balanceVoltage * 1000));
-        msg.buf[1] = lowByte(uint16_t(settings.balanceVoltage * 1000));
-      }
-      else
-      {
-        msg.buf[0] = highByte(uint16_t(bms.getLowCellVolt() * 1000));
-        msg.buf[1] = lowByte(uint16_t(bms.getLowCellVolt() * 1000));
-      }
-      msg.buf[2] =  0x01;
-      msg.buf[3] =  0x04;
-      msg.buf[4] =  0x03;
-      msg.buf[5] =  0x00;
-      msg.buf[6] =  0x00;
-      msg.buf[7] = 0x00;
-      Can0.write(msg);
-    }
-  }
-
   delay(2);
   msg.id  = 0x373;
   msg.len = 8;
@@ -3062,11 +3036,12 @@ void canread()
       case 0x3c2:
         CAB300();
         break;
+
       default:
         break;
     }
   }
-  else if (settings.curcan == 2)
+  if (settings.curcan == 2)
   {
     switch (inMsg.id)
     {
@@ -3082,28 +3057,25 @@ void canread()
       default:
         break;
     }
-  } else if (settings.curcan == 3)
+  }
+  if (settings.curcan == 3)
   {
     if (pgnFromCANId(inMsg.id) == 0x1F214 && inMsg.buf[0] == 0) // Check PGN and only use the first packet of each sequence
     {
       handleVictronLynx();
     }
   }
-  if (candebug == 1)
-  {
-    int pgn = 0;
-    if ((inMsg.id & 0x10000000) == 0x10000000)    // Determine if ID is standard (11 bits) or extended (29 bits)
-    {
-      pgn = pgnFromCANId(inMsg.id);
-      sprintf(msgString, "Extended ID: 0x%.8lX (pgn 0x%.5lX)  DLC: %1d  Data:", (inMsg.id & 0x1FFFFFFF), pgn, inMsg.len);
-    }
-    else
-    {
-      sprintf(msgString, ",0x%.3lX,false,%1d", inMsg.id, inMsg.len);
-    }
 
-    if (pgn == 0x1F214) {
+  if (debug == 1)
+  {
+    if (candebug == 1)
+    {
       Serial.print(millis());
+      if ((inMsg.id & 0x80000000) == 0x80000000)    // Determine if ID is standard (11 bits) or extended (29 bits)
+        sprintf(msgString, "Extended ID: 0x%.8lX  DLC: %1d  Data:", (inMsg.id & 0x1FFFFFFF), inMsg.len);
+      else
+        sprintf(msgString, ",0x%.3lX,false,%1d", inMsg.id, inMsg.len);
+
       Serial.print(msgString);
 
       if ((inMsg.id & 0x40000000) == 0x40000000) {  // Determine if message is a remote request frame.
@@ -3115,6 +3087,7 @@ void canread()
           Serial.print(msgString);
         }
       }
+
       Serial.println();
     }
   }
