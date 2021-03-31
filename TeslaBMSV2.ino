@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 210315;
+int firmver = 210331;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -85,10 +85,11 @@ byte bmsstatus = 0;
 #define Canbus 2
 #define Analoguesing 3
 // Can current sensor values
-#define LemCAB 1
-#define IsaScale 2
-#define VictronLynx 3
-#define CurCanMax 3 // max value
+#define LemCAB300 1
+#define IsaScale 3
+#define VictronLynx 4
+#define LemCAB500 2
+#define CurCanMax 4 // max value
 
 //
 //Charger Types
@@ -247,7 +248,7 @@ void loadSettings()
   settings.socvolt[3] = 90; //Voltage and SOC curve for voltage based SOC calc
   settings.invertcur = 0; //Invert current sensor direction
   settings.cursens = 2;
-  settings.curcan = LemCAB;
+  settings.curcan = LemCAB300;
   settings.voltsoc = 0; //SOC purely voltage based
   settings.Pretime = 5000; //ms of precharge time
   settings.conthold = 50; //holding duty cycle for contactor 0-255
@@ -2871,9 +2872,13 @@ void menu()
         if ( settings.cursens == Canbus)
         {
           SERIALCONSOLE.print("7 -Can Current Sensor :");
-          if (settings.curcan == LemCAB)
+          if (settings.curcan == LemCAB300)
           {
-            SERIALCONSOLE.println(" LEM CAB series ");
+            SERIALCONSOLE.println(" LEM CAB300/500 series ");
+          }
+          else  if (settings.curcan == LemCAB500)
+          {
+            SERIALCONSOLE.println(" LEM CAB500 Special ");
           }
           else if (settings.curcan == IsaScale)
           {
@@ -3029,10 +3034,14 @@ void canread()
 {
   Can0.read(inMsg);
   // Read data: len = data length, buf = data byte(s)
-  if (settings.curcan == 1)
+  if (settings.curcan == 1 || settings.curcan == 2)
   {
     switch (inMsg.id)
     {
+      case 0x3c1:
+        CAB500();
+        break;
+
       case 0x3c2:
         CAB300();
         break;
@@ -3041,7 +3050,7 @@ void canread()
         break;
     }
   }
-  if (settings.curcan == 2)
+  if (settings.curcan == 3)
   {
     switch (inMsg.id)
     {
@@ -3058,7 +3067,7 @@ void canread()
         break;
     }
   }
-  if (settings.curcan == 3)
+  if (settings.curcan == 4)
   {
     if (pgnFromCANId(inMsg.id) == 0x1F214 && inMsg.buf[0] == 0) // Check PGN and only use the first packet of each sequence
     {
@@ -3107,6 +3116,40 @@ void CAB300()
   else
   {
     CANmilliamps = (0x80000000 - CANmilliamps) * -1;
+  }
+  if ( settings.cursens == Canbus)
+  {
+    RawCur = CANmilliamps;
+    getcurrent();
+  }
+  if (candebug == 1)
+  {
+    Serial.println();
+    Serial.print(CANmilliamps);
+    Serial.print("mA ");
+  }
+}
+
+void CAB500()
+{
+  inbox = 0;
+  for (int i = 1; i < 4; i++)
+  {
+    inbox = (inbox << 8) | inMsg.buf[i];
+  }
+  CANmilliamps = inbox;
+  if (candebug == 1)
+  {
+    Serial.println();
+    Serial.print(CANmilliamps, HEX);
+  }
+  if (CANmilliamps > 0x800000)
+  {
+    CANmilliamps -= 0x800000;
+  }
+  else
+  {
+    CANmilliamps = (0x800000 - CANmilliamps) * -1;
   }
   if ( settings.cursens == Canbus)
   {
