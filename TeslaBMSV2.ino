@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 210331;
+int firmver = 240431;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -84,6 +84,7 @@ byte bmsstatus = 0;
 #define Analoguedual 1
 #define Canbus 2
 #define Analoguesing 3
+
 // Can current sensor values
 #define LemCAB300 1
 #define IsaScale 3
@@ -3034,46 +3035,66 @@ void canread()
 {
   Can0.read(inMsg);
   // Read data: len = data length, buf = data byte(s)
-  if (settings.curcan == 1 || settings.curcan == 2)
+  if ( settings.cursens == Canbus)
   {
-    switch (inMsg.id)
+    if (settings.curcan == 1)
     {
-      case 0x3c1:
-        CAB500();
-        break;
+      switch (inMsg.id)
+      {
+        case 0x3c1:
+          CAB500();
+          break;
 
-      case 0x3c2:
-        CAB300();
-        break;
+        case 0x3c2:
+          CAB300();
+          break;
 
-      default:
-        break;
+        default:
+          break;
+      }
     }
-  }
-  if (settings.curcan == 3)
-  {
-    switch (inMsg.id)
+    if (settings.curcan == 2)
     {
-      case 0x521: //
-        CANmilliamps = rxBuf[5] + (rxBuf[4] << 8) + (rxBuf[3] << 16) + (rxBuf[2] << 24);
-        break;
-      case 0x522: //
-        voltage1 = rxBuf[5] + (rxBuf[4] << 8) + (rxBuf[3] << 16) + (rxBuf[2] << 24);
-        break;
-      case 0x523: //
-        voltage2 = rxBuf[5] + (rxBuf[4] << 8) + (rxBuf[3] << 16) + (rxBuf[2] << 24);
-        break;
-      default:
-        break;
+      switch (inMsg.id)
+      {
+        case 0x3c1:
+          CAB500();
+          break;
+
+        case 0x3c2:
+          CAB500();
+          break;
+
+        default:
+          break;
+      }
     }
-  }
-  if (settings.curcan == 4)
-  {
-    if (pgnFromCANId(inMsg.id) == 0x1F214 && inMsg.buf[0] == 0) // Check PGN and only use the first packet of each sequence
+    if (settings.curcan == 3)
     {
-      handleVictronLynx();
+      switch (inMsg.id)
+      {
+        case 0x521: //
+          CANmilliamps = rxBuf[5] + (rxBuf[4] << 8) + (rxBuf[3] << 16) + (rxBuf[2] << 24);
+          break;
+        case 0x522: //
+          voltage1 = rxBuf[5] + (rxBuf[4] << 8) + (rxBuf[3] << 16) + (rxBuf[2] << 24);
+          break;
+        case 0x523: //
+          voltage2 = rxBuf[5] + (rxBuf[4] << 8) + (rxBuf[3] << 16) + (rxBuf[2] << 24);
+          break;
+        default:
+          break;
+      }
+    }
+    if (settings.curcan == 4)
+    {
+      if (pgnFromCANId(inMsg.id) == 0x1F214 && inMsg.buf[0] == 0) // Check PGN and only use the first packet of each sequence
+      {
+        handleVictronLynx();
+      }
     }
   }
+
 
   if (debug == 1)
   {
