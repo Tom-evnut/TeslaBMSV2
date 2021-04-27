@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 240431;
+int firmver = 270431;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -429,7 +429,7 @@ void loop()
     contcon();
     if (settings.ESSmode == 1)
     {
-      if (bmsstatus != Error)
+      if (bmsstatus != Error && bmsstatus != Boot)
       {
         contctrl = contctrl | 4; //turn on negative contactor
 
@@ -636,6 +636,7 @@ void loop()
             if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighTemperature() > settings.OverTSetpoint)
             {
               digitalWrite(OUT2, HIGH);//trip breaker
+              bmsstatus = Error;
             }
             else
             {
@@ -649,10 +650,10 @@ void loop()
               digitalWrite(OUT2, LOW);//turn off contactor
               contctrl = contctrl & 253; //turn off contactor
               digitalWrite(OUT4, LOW);//ensure precharge is low
+              bmsstatus = Error;
             }
           }
         }
-
       }
       else
       {
@@ -679,7 +680,8 @@ void loop()
 
           if (bms.getLowCellVolt() > settings.UnderVSetpoint && bms.getHighCellVolt() < settings.OverVSetpoint && bms.getHighTemperature() < settings.OverTSetpoint && cellspresent == bms.seriescells() && cellspresent == (settings.Scells * settings.Pstrings))
           {
-            bmsstatus = Boot;
+
+            bmsstatus = Ready;
           }
         }
       }
