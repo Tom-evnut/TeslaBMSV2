@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 210614;
+int firmver = 210904;
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -146,7 +146,7 @@ int value;
 float currentact, RawCur;
 float ampsecond;
 unsigned long lasttime;
-unsigned long looptime, looptime1, UnderTime, cleartime, baltimer = 0; //ms
+unsigned long looptime, looptime1, UnderTimer, OverTime, cleartime, baltimer = 0; //ms
 int currentsense = 14;
 int sensor = 1;
 
@@ -188,6 +188,7 @@ int storagemode = 0;
 int cellspresent = 0;
 int dashused = 1;
 int Charged = 0;
+int renum = 0;
 
 //Debugging modes//////////////////
 int debug = 1;
@@ -866,14 +867,14 @@ void loop()
     {
       if (bms.getLowCellVolt() < settings.UnderVSetpoint)
       {
-        if (undertriptimer > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
+        if (UnderTimer > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
         {
           bmsstatus = Error;
         }
       }
       else
       {
-        undertriptimer = millis() + settings.triptime;
+        UnderTimer = millis() + settings.triptime;
       }
 
       if (bms.getHighCellVolt() < settings.UnderVSetpoint || bms.getHighTemperature() > settings.OverTSetpoint)
@@ -882,14 +883,14 @@ void loop()
       }
       if (bms.getHighCellVolt() > settings.OverVSetpoint)
       {
-        if (UnderTime > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
+        if (OverTime > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
         {
           bmsstatus = Error;
         }
       }
       else
       {
-        UnderTime = millis() + settings.triptime;
+        OverTime = millis() + settings.triptime;
       }
     }
 
@@ -1425,7 +1426,12 @@ void updateSOC()
 {
   if (SOCset == 0)
   {
-    if (millis() > 9000)
+    if (millis() > 4000 && renum == 0)
+    {
+      bms.renumberBoardIDs();
+      renum = 1;
+    }
+    if (millis() > 4500)
     {
       bms.setSensors(settings.IgnoreTemp, settings.IgnoreVolt);
     }
