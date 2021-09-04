@@ -118,7 +118,7 @@ int16_t pwmcurmin = 0;//DONOT fill in, calculated later based on other values
 
 //variables for VE can
 uint16_t chargevoltage = 49100; //max charge voltage in mv
-uint16_t  chargecurrent = 0;
+uint16_t  chargecurrent, tempchargecurrent = 0;
 uint16_t disvoltage = 42000; // max discharge voltage in mv
 uint16_t  discurrent = 0;
 int batvcal = 0;
@@ -176,8 +176,7 @@ volatile uint32_t pilottimer = 0;
 volatile uint16_t timehigh, duration = 0;
 volatile uint16_t accurlim = 0;
 volatile int dutycycle = 0;
-uint16_t ACvolt = 240;
-uint16_t ChargerEff = 85;
+uint16_t chargerpower = 0;
 bool CPdebug = 0;
 
 //variables
@@ -266,6 +265,8 @@ void loadSettings()
   settings.ncur = 1; //number of multiples to use for current measurement
   settings.chargertype = 2; // 1 - Brusa NLG5xx 2 - Volt charger 0 -No Charger
   settings.chargerspd = 100; //ms per message
+  settings.chargereff = 85; //% effiecency of charger
+  settings.chargerACv = 240;// AC input voltage into Charger
   settings.UnderDur = 5000; //ms of allowed undervoltage before throwing open stopping discharge.
   settings.CurDead = 5;// mV of dead band on current sensor
   settings.ExpMess = 0; //send alternate victron info
@@ -1210,13 +1211,22 @@ void printbmsstat()
   SERIALCONSOLE.print(discurrent * 0.1, 0);
   SERIALCONSOLE.print(" A");
 
-  if (bmsstatus == Charge || CPdebug == 1)
+  if (bmsstatus == Charge || accurlim > 0)
   {
-    Serial.print("  CP Current Limit: ");
+    Serial.print("  CP AC Current Limit: ");
     Serial.print(accurlim);
+    Serial.print(" A");
+  }
+  
+  if (bmsstatus == Charge && CPdebug == 1)
+  {
+    Serial.print("A  CP Dur: ");
+    Serial.print(duration);
+    Serial.print("  Charge Power : ");
+    Serial.print(chargerpower);
     if (chargecurrentlimit == false)
     {
-      SERIALCONSOLE.print("A  No Charge Current Limit");
+      SERIALCONSOLE.print("  No Charge Current Limit");
     }
     else
     {
@@ -2282,6 +2292,24 @@ void menu()
           incomingByte = 'e';
         }
         break;
+
+      case 'b':
+        if (Serial.available() > 0)
+        {
+          settings.chargereff = Serial.parseInt();
+          menuload = 1;
+          incomingByte = 'e';
+        }
+        break;
+
+      case 'c':
+        if (Serial.available() > 0)
+        {
+          settings.chargerACv = Serial.parseInt();
+          menuload = 1;
+          incomingByte = 'e';
+        }
+        break;
     }
   }
 
@@ -2706,6 +2734,12 @@ void menu()
           SERIALCONSOLE.print("a - Alternate Pack Max Charge Current: ");
           SERIALCONSOLE.print(settings.chargecurrent2max * 0.1);
           SERIALCONSOLE.println("A");
+          SERIALCONSOLE.print("b - Charger AC to DC effiecency: ");
+          SERIALCONSOLE.print(settings.chargereff);
+          SERIALCONSOLE.println("%");
+          SERIALCONSOLE.print("c - Charger AC Voltage: ");
+          SERIALCONSOLE.print(settings.chargerACv);
+          SERIALCONSOLE.println("VAC");
         }
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 6;
@@ -3245,7 +3279,6 @@ void currentlimit()
       chargecurrent = settings.chargecurrent2max;
     }
 
-
     ///////All hard limits to into zeros
     if (bms.getLowTemperature() < settings.UnderTSetpoint)
     {
@@ -3351,6 +3384,21 @@ void currentlimit()
   {
     chargecurrent = 0;
   }
+
+    //Charge current derate for Control Pilot AC limit
+
+    if (accurlim > 0)
+    {
+      chargerpower = accurlim * settings.chargerACv * settings.chargereff * 0.01;
+      tempchargecurrent = (chargerpower*10) / (bms.getAvgCellVolt() * settings.Scells);
+
+      if( chargecurrent > tempchargecurrent)
+      {
+         chargecurrent = tempchargecurrent;
+      }
+    }
+
+  
 }
 
 
@@ -3595,11 +3643,6 @@ void balancing()
 
 void chargercomms()
 {
-  if (accurlim > 0)
-  {
-    uint16_t chargerpower = (accurlim * 0.001) * ACvolt * ChargerEff * 0.01;
-    chargecurrent = chargerpower / (settings.ChargeVsetpoint * settings.Scells);
-  }
 
   if (settings.chargertype == Elcon)
   {
@@ -3768,13 +3811,13 @@ void SerialCanRecieve()
 
 void isrCP ()
 {
-  if (  digitalRead(IN4) == HIGH)
+  if (  digitalRead(IN4) == LOW)
   {
     duration = micros() - pilottimer;
     pilottimer = micros();
   }
   else
   {
-    accurlim = (micros() - pilottimer) * 100 / duration * 600; //Calculate the duty cycle then multiply by 600 to get mA current limit
+    accurlim = ((duration - (micros() - pilottimer + 35)) * 60) / duration; //pilottimer + "xx" optocoupler decade ms
   }
 }  // ******** end of isr CP ********

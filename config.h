@@ -102,4 +102,6 @@ typedef struct {
   uint16_t PulseDi;
   uint16_t PulseDiDur;
   uint8_t tripcont;
+  int chargereff;
+  int chargerACv;
 } EEPROMSettings;
