@@ -340,8 +340,8 @@ void BMSModuleManager::getAllVoltTemp()
       Logger::debug("Lowest Cell V: %f     Highest Cell V: %f", modules[x].getLowCellV(), modules[x].getHighCellV());
       Logger::debug("Temp1: %f       Temp2: %f", modules[x].getTemperature(0), modules[x].getTemperature(1));
       packVolt += modules[x].getModuleVoltage();
-      if (modules[x].getLowTemp() < lowestPackTemp) lowestPackTemp = modules[x].getLowTemp();
-      if (modules[x].getHighTemp() > highestPackTemp) highestPackTemp = modules[x].getHighTemp();
+      if (modules[x].getLowTemp() < lowestPackTemp && modules[x].getLowTemp() > -70) lowestPackTemp = modules[x].getLowTemp();
+      if (modules[x].getHighTemp() > highestPackTemp && modules[x].getLowTemp() > -70) highestPackTemp = modules[x].getHighTemp();
     }
   }
 
