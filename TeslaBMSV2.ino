@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 220505; //Year Month Day
+int firmver = 220531; //Year Month Day
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -154,6 +154,7 @@ int sensor = 1;
 int SOC = 100; //State of Charge
 int SOCset = 0;
 int SOCtest = 0;
+int SOCmem = 0;
 
 
 ///charger variables
@@ -200,6 +201,8 @@ int CSVdebug = 0;
 int menuload = 0;
 int balancecells;
 int debugdigits = 2; //amount of digits behind decimal for voltage reading
+
+int testcount = 0;
 
 ADC *adc = new ADC(); // adc object
 
@@ -396,6 +399,24 @@ void setup()
   bms.setPstrings(settings.Pstrings);
   bms.setSensors(settings.IgnoreTemp, settings.IgnoreVolt);
 
+  //SOC recovery//
+
+  SOC = (EEPROM.read(1000));
+  if (settings.voltsoc == 1)
+  {
+    SOCmem = 0;
+  }
+  else
+  {
+    if (SOC > 100)
+    {
+      SOCmem = 0;
+    }
+    else
+    {
+      SOCmem = 1;
+    }
+  }
   ////Calculate fixed numbers
   pwmcurmin = (pwmcurmid / 50 * pwmcurmax * -1);
   ////
@@ -408,6 +429,10 @@ void setup()
   // setup interrupts
   //RISING/HIGH/CHANGE/LOW/FALLING
   attachInterrupt (IN4, isrCP , CHANGE); // attach BUTTON 1 interrupt handler [ pin# 7 ]
+
+  PMC_LVDSC1 =  PMC_LVDSC1_LVDV(1);  // enable hi v
+  PMC_LVDSC2 = PMC_LVDSC2_LVWIE | PMC_LVDSC2_LVWV(3); // 2.92-3.08v
+  NVIC_ENABLE_IRQ(IRQ_LOW_VOLTAGE);
 
 }
 
@@ -837,7 +862,6 @@ void loop()
   {
     looptime = millis();
     bms.getAllVoltTemp();
-
     //UV  check
     if (settings.ESSmode == 1)
     {
@@ -1060,7 +1084,7 @@ void printbmsstat()
 {
   SERIALCONSOLE.println();
   SERIALCONSOLE.println();
-  SERIALCONSOLE.println();
+  SERIALCONSOLE.println(testcount);
   SERIALCONSOLE.print("BMS Status : ");
   if (settings.ESSmode == 1)
   {
@@ -1217,7 +1241,7 @@ void printbmsstat()
     Serial.print(accurlim);
     Serial.print(" A");
   }
-  
+
   if (bmsstatus == Charge && CPdebug == 1)
   {
     Serial.print("A  CP Dur: ");
@@ -1434,7 +1458,7 @@ void getcurrent()
 
 void updateSOC()
 {
-  if (SOCset == 0)
+  if (SOCset == 0 && SOCmem == 0)
   {
     if (millis() > 4000 && renum == 0)
     {
@@ -1447,7 +1471,7 @@ void updateSOC()
     }
     if (millis() > 5000)
     {
-      SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
+      SOC = map(uint16_t(bms.getLowCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
 
       ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
       SOCset = 1;
@@ -1468,7 +1492,7 @@ void updateSOC()
   */
   if (settings.voltsoc == 1)
   {
-    SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
+    SOC = map(uint16_t(bms.getLowCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
 
     ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
   }
@@ -3077,7 +3101,7 @@ void canread()
 {
   Can0.read(inMsg);
   // Read data: len = data length, buf = data byte(s)
-if ( settings.cursens == Canbus)
+  if ( settings.cursens == Canbus)
   {
     if (settings.curcan == 1)
     {
@@ -3393,20 +3417,20 @@ void currentlimit()
     chargecurrent = 0;
   }
 
-    //Charge current derate for Control Pilot AC limit
+  //Charge current derate for Control Pilot AC limit
 
-    if (accurlim > 0)
+  if (accurlim > 0)
+  {
+    chargerpower = accurlim * settings.chargerACv * settings.chargereff * 0.01;
+    tempchargecurrent = (chargerpower * 10) / (bms.getAvgCellVolt() * settings.Scells);
+
+    if ( chargecurrent > tempchargecurrent)
     {
-      chargerpower = accurlim * settings.chargerACv * settings.chargereff * 0.01;
-      tempchargecurrent = (chargerpower*10) / (bms.getAvgCellVolt() * settings.Scells);
-
-      if( chargecurrent > tempchargecurrent)
-      {
-         chargecurrent = tempchargecurrent;
-      }
+      chargecurrent = tempchargecurrent;
     }
+  }
 
-  
+
 }
 
 
@@ -3829,3 +3853,10 @@ void isrCP ()
     accurlim = ((duration - (micros() - pilottimer + 35)) * 60) / duration; //pilottimer + "xx" optocoupler decade ms
   }
 }  // ******** end of isr CP ********
+
+void low_voltage_isr(void) {
+  EEPROM.update(1000, uint8_t(SOC));
+
+  PMC_LVDSC2 |= PMC_LVDSC2_LVWACK;  // clear if we can
+  PMC_LVDSC1 |= PMC_LVDSC1_LVDACK;
+}
