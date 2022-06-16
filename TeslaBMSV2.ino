@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 220531; //Year Month Day
+int firmver = 220616; //Year Month Day
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -101,6 +101,7 @@ byte bmsstatus = 0;
 #define Elcon 4
 #define Victron 5
 #define Coda 6
+#define VictronHV 7
 //
 
 
@@ -115,6 +116,9 @@ uint16_t pwmfreq = 18000;//pwm frequency
 int pwmcurmax = 50;//Max current to be shown with pwm
 int pwmcurmid = 50;//Mid point for pwm dutycycle based on current
 int16_t pwmcurmin = 0;//DONOT fill in, calculated later based on other values
+
+bool OutputEnable = 0;
+bool CanOnReq = false;
 
 //variables for VE can
 uint16_t chargevoltage = 49100; //max charge voltage in mv
@@ -456,7 +460,22 @@ void loop()
     contcon();
     if (settings.ESSmode == 1)
     {
-      if (bmsstatus != Error && bmsstatus != Boot)
+      if (settings.ChargerDirect == 1)
+      {
+        OutputEnable = 1;
+      }
+      else
+      {
+        if (digitalRead(IN2) == HIGH || CanOnReq == true)
+        {
+          OutputEnable = 1;
+        }
+        else
+        {
+          OutputEnable = 0;
+        }
+      }
+      if (bmsstatus != Error && bmsstatus != Boot && OutputEnable == 1)
       {
         contctrl = contctrl | 4; //turn on negative contactor
 
@@ -1770,8 +1789,18 @@ void VEcan() //communication with Victron system over CAN
 
   msg.id  = 0x356;
   msg.len = 8;
-  msg.buf[0] = lowByte(uint16_t(bms.getPackVoltage() * 100));
-  msg.buf[1] = highByte(uint16_t(bms.getPackVoltage() * 100));
+
+  if (settings.chargertype = VictronHV)
+  {
+    msg.buf[0] = lowByte(uint16_t(bms.getPackVoltage() * 10));
+    msg.buf[1] = highByte(uint16_t(bms.getPackVoltage() * 10));
+  }
+  else
+  {
+    msg.buf[0] = lowByte(uint16_t(bms.getPackVoltage() * 100));
+    msg.buf[1] = highByte(uint16_t(bms.getPackVoltage() * 100));
+  }
+
   msg.buf[2] = lowByte(long(currentact / 100));
   msg.buf[3] = highByte(long(currentact / 100));
   msg.buf[4] = lowByte(int16_t(bms.getAvgTemperature() * 10));
@@ -1779,6 +1808,7 @@ void VEcan() //communication with Victron system over CAN
   msg.buf[6] = 0;
   msg.buf[7] = 0;
   Can0.write(msg);
+
 
   delay(2);
   msg.id  = 0x35A;
@@ -2265,7 +2295,7 @@ void menu()
 
       case '5': //1 Over Voltage Setpoint
         settings.chargertype = settings.chargertype + 1;
-        if (settings.chargertype > 6)
+        if (settings.chargertype > 7)
         {
           settings.chargertype = 0;
         }
@@ -2398,6 +2428,20 @@ void menu()
         }
         menuload = 1;
         incomingByte = 'k';
+        break;
+
+
+      case '7':
+        if ( settings.ChargerDirect == 1)
+        {
+          settings.ChargerDirect = 0;
+        }
+        else
+        {
+          settings.ChargerDirect = 1;
+        }
+        menuload = 1;
+        incomingByte = 'e';
         break;
 
       case 113: //q to go back to main menu
@@ -2728,6 +2772,9 @@ void menu()
           case 6:
             SERIALCONSOLE.print("Coda");
             break;
+          case 7:
+            SERIALCONSOLE.print("Victron HV Spec");
+            break;
         }
         SERIALCONSOLE.println();
         if (settings.chargertype > 0)
@@ -2830,6 +2877,16 @@ void menu()
           else
           {
             SERIALCONSOLE.println( "Main Contactor and Precharge");
+          }
+          SERIALCONSOLE.print("7 - External Battery Enable: ");
+          switch (settings.ChargerDirect)
+          {
+            case 0:
+              SERIALCONSOLE.print(" Enable In2");
+              break;
+            case 1:
+              SERIALCONSOLE.print("Auto Start");
+              break;
           }
         }
 
@@ -3174,6 +3231,11 @@ void canread()
     }
   }
 
+  if (inMsg.id == 309)
+  {
+    Rx309();
+  }
+
 
   if (debug == 1)
   {
@@ -3199,6 +3261,18 @@ void canread()
 
       Serial.println();
     }
+  }
+}
+
+void Rx309()
+{
+  if (inMsg.buf[0] & 0x01)
+  {
+    CanOnReq = true;
+  }
+  else
+  {
+    CanOnReq = false;
   }
 }
 
