@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 220616; //Year Month Day
+int firmver = 220624; //Year Month Day
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -150,7 +150,7 @@ int value;
 float currentact, RawCur;
 float ampsecond;
 unsigned long lasttime;
-unsigned long looptime, looptime1, UnderTimer, OverTime, cleartime, baltimer = 0; //ms
+unsigned long looptime, looptime1, UnderTimer, OverTime, cleartime, baltimer, CanOntimeout = 0; //ms
 int currentsense = 14;
 int sensor = 1;
 
@@ -418,7 +418,7 @@ void setup()
     }
     else
     {
-      SOCmem = 1;
+      //SOCmem = 1;
     }
   }
   ////Calculate fixed numbers
@@ -965,6 +965,16 @@ void loop()
     updateSOC();
     currentlimit();
     VEcan();
+
+    if (settings.ESSmode == 1 && settings.ChargerDirect == 1)
+    {
+      if ((millis() - CanOntimeout) > 5000)
+      {
+        Serial.println();
+        Serial.println("0x309 Can On Request Missing");
+        CanOnReq = false;
+      }
+    }
 
 
     if (cellspresent == 0 && SOCset == 1)
@@ -1886,9 +1896,9 @@ void VEcan() //communication with Victron system over CAN
   msg.len = 8;
   msg.buf[0] = lowByte(bms.getNumModules());
   msg.buf[1] = highByte(bms.getNumModules());
-  msg.buf[2] = 0x00;
-  msg.buf[3] = 0x00;
-  msg.buf[4] = 0x00;
+  msg.buf[2] = contstat; //contactor state
+  msg.buf[3] = (digitalRead(OUT1) | (digitalRead(OUT2) << 1) | (digitalRead(OUT3) << 2) | (digitalRead(OUT4) << 3));
+  msg.buf[4] = bmsstatus;
   msg.buf[5] = 0x00;
   msg.buf[6] = 0x00;
   msg.buf[7] = 0x00;
@@ -2441,7 +2451,7 @@ void menu()
           settings.ChargerDirect = 1;
         }
         menuload = 1;
-        incomingByte = 'e';
+        incomingByte = 'k';
         break;
 
       case 113: //q to go back to main menu
@@ -3231,7 +3241,7 @@ void canread()
     }
   }
 
-  if (inMsg.id == 309)
+  if (inMsg.id == 0x309)
   {
     Rx309();
   }
@@ -3269,10 +3279,12 @@ void Rx309()
   if (inMsg.buf[0] & 0x01)
   {
     CanOnReq = true;
+    CanOntimeout = millis();
   }
   else
   {
     CanOnReq = false;
+    CanOntimeout = millis();
   }
 }
 
