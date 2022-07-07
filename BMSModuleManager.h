@@ -36,6 +36,8 @@ class BMSModuleManager
     float getHighVoltage();
     float getLowVoltage();
     int getBalancing();
+    uint16_t getcellvolt(int modid, int cellid);
+    uint16_t gettemp(int modid, int tempid);
     /*
       void processCANMsg(CAN_FRAME &frame);
     */

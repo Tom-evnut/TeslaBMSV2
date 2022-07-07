@@ -702,3 +702,13 @@ void BMSModuleManager::printAllCSV(unsigned long timestamp, float current, int S
     }
   }
 }
+
+uint16_t BMSModuleManager::getcellvolt(int modid, int cellid)
+{
+  return(modules[modid].getCellVoltage(cellid)*1000);
+}
+
+uint16_t BMSModuleManager::gettemp(int modid, int tempid)
+{
+  return(modules[modid].getTemperature(tempid));
+}

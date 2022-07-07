@@ -3738,12 +3738,48 @@ void dashupdate()
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
-  Serial2.write(0xff);
   Serial2.print("cellbal.val=");
   Serial2.print(bms.getBalancing());
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
+
+  ///Cell voltages///
+  Serial2.print("mNum.val=");
+  Serial2.print(1);
+  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+  Serial2.write(0xff);
+  Serial2.write(0xff);
+
+
+  for (int i = 0; i < 6; i++)
+  {
+    Serial2.print("c");
+    Serial2.print(i+1);
+    Serial2.print("id.val=");
+    Serial2.print(i+1);
+    Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+    Serial2.write(0xff);
+    Serial2.write(0xff);
+    Serial2.print("c");
+    Serial2.print(i+1);
+    Serial2.print("v.val=");
+    Serial2.print(bms.getcellvolt(1, i));
+    Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+    Serial2.write(0xff);
+    Serial2.write(0xff);
+  }
+
+  for (int i = 0; i < 2; i++)
+  {
+    Serial2.print("t");
+    Serial2.print(i+1);
+    Serial2.print("v.val=");
+    Serial2.print(bms.gettemp(1, i));
+    Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+    Serial2.write(0xff);
+    Serial2.write(0xff);
+  }
 }
 
 void balancing()
