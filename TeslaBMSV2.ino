@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 220624; //Year Month Day
+int firmver = 220707; //Year Month Day
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -118,7 +118,8 @@ int pwmcurmid = 50;//Mid point for pwm dutycycle based on current
 int16_t pwmcurmin = 0;//DONOT fill in, calculated later based on other values
 
 bool OutputEnable = 0;
-bool CanOnReq = false;
+bool CanOnReq  = false;
+bool CanOnRev = false;
 
 //variables for VE can
 uint16_t chargevoltage = 49100; //max charge voltage in mv
@@ -328,6 +329,8 @@ void setup()
     Can0.setFilter(allPassFilter, filterNum);
   }
 
+
+
   //if using enable pins on a transceiver they need to be set on
 
 
@@ -437,11 +440,11 @@ void setup()
   PMC_LVDSC1 =  PMC_LVDSC1_LVDV(1);  // enable hi v
   PMC_LVDSC2 = PMC_LVDSC2_LVWIE | PMC_LVDSC2_LVWV(3); // 2.92-3.08v
   NVIC_ENABLE_IRQ(IRQ_LOW_VOLTAGE);
-
 }
 
 void loop()
 {
+
   while (Can0.available())
   {
     canread();
@@ -469,6 +472,7 @@ void loop()
         if (digitalRead(IN2) == HIGH || CanOnReq == true)
         {
           OutputEnable = 1;
+          //Serial.println(CanOnReq);
         }
         else
         {
@@ -478,7 +482,6 @@ void loop()
       if (bmsstatus != Error && bmsstatus != Boot && OutputEnable == 1)
       {
         contctrl = contctrl | 4; //turn on negative contactor
-
         if (settings.tripcont != 0)
         {
           if (bms.getLowCellVolt() > settings.UnderVSetpoint && bms.getHighCellVolt() < settings.OverVSetpoint)
@@ -726,7 +729,6 @@ void loop()
 
           if (bms.getLowCellVolt() > settings.UnderVSetpoint && bms.getHighCellVolt() < settings.OverVSetpoint && bms.getHighTemperature() < settings.OverTSetpoint && cellspresent == bms.seriescells() && cellspresent == (settings.Scells * settings.Pstrings))
           {
-
             bmsstatus = Ready;
           }
         }
@@ -966,7 +968,7 @@ void loop()
     currentlimit();
     VEcan();
 
-    if (settings.ESSmode == 1 && settings.ChargerDirect == 1)
+    if (settings.ESSmode == 1 && settings.ChargerDirect == 0 && CanOnRev == true)
     {
       if ((millis() - CanOntimeout) > 5000)
       {
@@ -3276,15 +3278,20 @@ void canread()
 
 void Rx309()
 {
-  if (inMsg.buf[0] & 0x01)
+  if (SOCset == 1)
   {
-    CanOnReq = true;
-    CanOntimeout = millis();
-  }
-  else
-  {
-    CanOnReq = false;
-    CanOntimeout = millis();
+    if (inMsg.buf[0] & 0x01)
+    {
+      CanOnReq = true;
+      CanOnRev = true;
+      CanOntimeout = millis();
+    }
+    else
+    {
+      CanOnReq = false;
+      CanOnRev = true;
+      CanOntimeout = millis();
+    }
   }
 }
 
