@@ -649,29 +649,60 @@ void BMSModuleManager::printPackDetails(int digits)
   }
 }
 
-void BMSModuleManager::printAllCSV(unsigned long timestamp, float current, int SOC)
+void BMSModuleManager::printAllCSV(unsigned long timestamp, float current, int SOC, int delim)
 {
   for (int y = 1; y < 63; y++)
   {
     if (modules[y].isExisting())
     {
       SERIALCONSOLE.print(timestamp);
-      SERIALCONSOLE.print(",");
+      if (delim == 1)
+      {
+        SERIALCONSOLE.print(" ");
+      }
+      else
+      {
+        SERIALCONSOLE.print(",");
+      }
       SERIALCONSOLE.print(current, 0);
-      SERIALCONSOLE.print(",");
+      if (delim == 1)       {
+        SERIALCONSOLE.print(" ");
+      }       else       {
+        SERIALCONSOLE.print(",");
+      }
       SERIALCONSOLE.print(SOC);
-      SERIALCONSOLE.print(",");
+      if (delim == 1)       {
+        SERIALCONSOLE.print(" ");
+      }       else       {
+        SERIALCONSOLE.print(",");
+      }
       SERIALCONSOLE.print(y);
-      SERIALCONSOLE.print(",");
+      if (delim == 1)       {
+        SERIALCONSOLE.print(" ");
+      }       else       {
+        SERIALCONSOLE.print(",");
+      }
       for (int i = 0; i < 8; i++)
       {
         SERIALCONSOLE.print(modules[y].getCellVoltage(i));
-        SERIALCONSOLE.print(",");
+        if (delim == 1)       {
+          SERIALCONSOLE.print(" ");
+        }       else       {
+          SERIALCONSOLE.print(",");
+        }
       }
       SERIALCONSOLE.print(modules[y].getTemperature(0));
-      SERIALCONSOLE.print(",");
+      if (delim == 1)       {
+        SERIALCONSOLE.print(" ");
+      }       else       {
+        SERIALCONSOLE.print(",");
+      }
       SERIALCONSOLE.print(modules[y].getTemperature(1));
-      SERIALCONSOLE.print(",");
+      if (delim == 1)       {
+        SERIALCONSOLE.print(" ");
+      }       else       {
+        SERIALCONSOLE.print(",");
+      }
       SERIALCONSOLE.print(modules[y].getTemperature(2));
       SERIALCONSOLE.println();
     }
@@ -681,22 +712,53 @@ void BMSModuleManager::printAllCSV(unsigned long timestamp, float current, int S
     if (modules[y].isExisting())
     {
       Serial2.print(timestamp);
-      Serial2.print(",");
+      if (delim == 1)
+      {
+        Serial2.print(" ");
+      }
+      else
+      {
+        Serial2.print(",");
+      }
       Serial2.print(current, 0);
-      Serial2.print(",");
+      if (delim == 1)       {
+        Serial2.print(" ");
+      }       else       {
+        Serial2.print(",");
+      }
       Serial2.print(SOC);
-      Serial2.print(",");
+      if (delim == 1)       {
+        Serial2.print(" ");
+      }       else       {
+        Serial2.print(",");
+      }
       Serial2.print(y);
-      Serial2.print(",");
+      if (delim == 1)       {
+        Serial2.print(" ");
+      }       else       {
+        Serial2.print(",");
+      }
       for (int i = 0; i < 8; i++)
       {
         Serial2.print(modules[y].getCellVoltage(i));
-        Serial2.print(",");
+        if (delim == 1)       {
+          Serial2.print(" ");
+        }       else       {
+          Serial2.print(",");
+        }
       }
       Serial2.print(modules[y].getTemperature(0));
-      Serial2.print(",");
+      if (delim == 1)       {
+        Serial2.print(" ");
+      }       else       {
+        Serial2.print(",");
+      }
       Serial2.print(modules[y].getTemperature(1));
-      Serial2.print(",");
+      if (delim == 1)       {
+        Serial2.print(" ");
+      }       else       {
+        Serial2.print(",");
+      }
       Serial2.print(modules[y].getTemperature(2));
       Serial2.println();
     }
@@ -705,10 +767,10 @@ void BMSModuleManager::printAllCSV(unsigned long timestamp, float current, int S
 
 uint16_t BMSModuleManager::getcellvolt(int modid, int cellid)
 {
-  return(modules[modid].getCellVoltage(cellid)*1000);
+  return (modules[modid].getCellVoltage(cellid) * 1000);
 }
 
 uint16_t BMSModuleManager::gettemp(int modid, int tempid)
 {
-  return(modules[modid].getTemperature(tempid));
+  return (modules[modid].getTemperature(tempid));
 }

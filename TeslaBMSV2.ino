@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 220707; //Year Month Day
+int firmver = 220715; //Year Month Day
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -203,6 +203,7 @@ int candebug = 0; //view can frames
 int gaugedebug = 0;
 int debugCur = 0;
 int CSVdebug = 0;
+int delim = 0;
 int menuload = 0;
 int balancecells;
 int debugdigits = 2; //amount of digits behind decimal for voltage reading
@@ -419,7 +420,7 @@ void setup()
     {
       SOCmem = 0;
     }
-    else
+    else if (SOC > 1)
     {
       //SOCmem = 1;
     }
@@ -949,7 +950,7 @@ void loop()
     }
     if (CSVdebug != 0)
     {
-      bms.printAllCSV(millis(), currentact, SOC);
+      bms.printAllCSV(millis(), currentact, SOC, delim);
     }
     if (inputcheck != 0)
     {
@@ -1502,6 +1503,7 @@ void updateSOC()
     }
     if (millis() > 5000)
     {
+      SERIALCONSOLE.println(" HERE ");
       SOC = map(uint16_t(bms.getLowCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
 
       ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
@@ -1993,6 +1995,18 @@ void menu()
         incomingByte = 'd';
         break;
 
+      case 'd':
+        menuload = 1;
+        if (Serial.available() > 0)
+        {
+          delim = Serial.parseInt();
+        }
+        if (delim > 1)
+        {
+          delim = 0;
+        }
+        incomingByte = 'd';
+        break;
 
       case 113: //q for quite menu
 
@@ -2940,6 +2954,15 @@ void menu()
         SERIALCONSOLE.println(CSVdebug);
         SERIALCONSOLE.print("9 - Decimal Places to Show :");
         SERIALCONSOLE.println(debugdigits);
+        SERIALCONSOLE.print("d - CSV Delimiter :");
+        if (delim == 1)
+        {
+          SERIALCONSOLE.println("Space");
+        }
+        else
+        {
+          SERIALCONSOLE.println("Comma");
+        }
         SERIALCONSOLE.println("q - Go back to menu");
         menuload = 4;
         break;
@@ -3755,14 +3778,14 @@ void dashupdate()
   for (int i = 0; i < 6; i++)
   {
     Serial2.print("c");
-    Serial2.print(i+1);
+    Serial2.print(i + 1);
     Serial2.print("id.val=");
-    Serial2.print(i+1);
+    Serial2.print(i + 1);
     Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
     Serial2.write(0xff);
     Serial2.write(0xff);
     Serial2.print("c");
-    Serial2.print(i+1);
+    Serial2.print(i + 1);
     Serial2.print("v.val=");
     Serial2.print(bms.getcellvolt(1, i));
     Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
@@ -3773,7 +3796,7 @@ void dashupdate()
   for (int i = 0; i < 2; i++)
   {
     Serial2.print("t");
-    Serial2.print(i+1);
+    Serial2.print(i + 1);
     Serial2.print("v.val=");
     Serial2.print(bms.gettemp(1, i));
     Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
