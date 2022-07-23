@@ -1804,7 +1804,7 @@ void VEcan() //communication with Victron system over CAN
   msg.id  = 0x356;
   msg.len = 8;
 
-  if (settings.chargertype = VictronHV)
+  if (settings.chargertype == VictronHV)
   {
     msg.buf[0] = lowByte(uint16_t(bms.getPackVoltage() * 10));
     msg.buf[1] = highByte(uint16_t(bms.getPackVoltage() * 10));
