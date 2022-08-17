@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 220715; //Year Month Day
+int firmver = 220817; //Year Month Day
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -1005,11 +1005,13 @@ void loop()
     }
     resetwdog();
   }
+  
   if (millis() - cleartime > 5000)
   {
     bms.clearmodules();
     cleartime = millis();
   }
+  
   if (millis() - looptime1 > settings.chargerspd)
   {
     looptime1 = millis();

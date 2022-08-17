@@ -261,8 +261,24 @@ float BMSModule::getAverageV()
       avgVal += cellVolt[i];
     }
   }
-
-  scells = x;
+  
+  if (scells != x)
+  {
+    if (smiss > 2)
+    {
+      scells = x;
+    }
+    else
+    {
+      smiss++;
+    }
+  }
+  else
+  {
+    scells = x;
+    smiss = 0;
+  }
+  
   avgVal /= x;
   return avgVal;
 }
