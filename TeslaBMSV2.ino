@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 220817; //Year Month Day
+int firmver = 220820; //Year Month Day
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -1005,13 +1005,13 @@ void loop()
     }
     resetwdog();
   }
-  
+
   if (millis() - cleartime > 5000)
   {
     bms.clearmodules();
     cleartime = millis();
   }
-  
+
   if (millis() - looptime1 > settings.chargerspd)
   {
     looptime1 = millis();
@@ -1882,6 +1882,13 @@ void VEcan() //communication with Victron system over CAN
   msg.len = 2;
   msg.buf[0] = lowByte(uint16_t(settings.Pstrings * settings.CAP));
   msg.buf[1] = highByte(uint16_t(settings.Pstrings * settings.CAP));
+  msg.buf[2] = contstat; //contactor state
+  msg.buf[3] = (digitalRead(OUT1) | (digitalRead(OUT2) << 1) | (digitalRead(OUT3) << 2) | (digitalRead(OUT4) << 3));
+  msg.buf[4] = bmsstatus;
+  msg.buf[5] = 0x00;
+  msg.buf[6] = 0x00;
+  msg.buf[7] = 0x00;
+  Can0.write(msg);
   /*
       delay(2);
     msg.id  = 0x378; //Installed capacity
@@ -1902,9 +1909,9 @@ void VEcan() //communication with Victron system over CAN
   msg.len = 8;
   msg.buf[0] = lowByte(bms.getNumModules());
   msg.buf[1] = highByte(bms.getNumModules());
-  msg.buf[2] = contstat; //contactor state
-  msg.buf[3] = (digitalRead(OUT1) | (digitalRead(OUT2) << 1) | (digitalRead(OUT3) << 2) | (digitalRead(OUT4) << 3));
-  msg.buf[4] = bmsstatus;
+  msg.buf[2] = 0x00;
+  msg.buf[3] = 0x00;
+  msg.buf[4] = 0x00;
   msg.buf[5] = 0x00;
   msg.buf[6] = 0x00;
   msg.buf[7] = 0x00;
