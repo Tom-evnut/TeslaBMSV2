@@ -1879,7 +1879,7 @@ void VEcan() //communication with Victron system over CAN
 
   delay(2);
   msg.id  = 0x379; //Installed capacity
-  msg.len = 2;
+  msg.len = 8;
   msg.buf[0] = lowByte(uint16_t(settings.Pstrings * settings.CAP));
   msg.buf[1] = highByte(uint16_t(settings.Pstrings * settings.CAP));
   msg.buf[2] = contstat; //contactor state
@@ -1905,6 +1905,7 @@ void VEcan() //communication with Victron system over CAN
     msg.buf[7] =
   */
   delay(2);
+  
   msg.id  = 0x372;
   msg.len = 8;
   msg.buf[0] = lowByte(bms.getNumModules());
