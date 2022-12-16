@@ -973,7 +973,6 @@ void loop()
     }
     updateSOC();
     currentlimit();
-    VEcan();
 
     if (settings.ESSmode == 1 && settings.ChargerDirect == 0 && CanOnRev == true)
     {
@@ -1021,6 +1020,7 @@ void loop()
   if (millis() - looptime1 > settings.chargerspd)
   {
     looptime1 = millis();
+    VEcan();
     if (settings.ESSmode == 1)
     {
       chargercomms();
