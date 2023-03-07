@@ -3247,6 +3247,14 @@ void canread()
             getcurrent();
           }
           break;
+        case 0x3C3: // Jaguar Ipace ISA shunt current reading
+          CANmilliamps = inMsg.buf[5] + (inMsg.buf[4] << 8) + (inMsg.buf[3] << 16) + (inMsg.buf[2] << 24);
+          if ( settings.cursens == Canbus)
+          {
+            RawCur = CANmilliamps;
+            getcurrent();
+          }
+          break;
         case 0x522: //
           voltage1 = inMsg.buf[5] + (inMsg.buf[4] << 8) + (inMsg.buf[3] << 16) + (inMsg.buf[2] << 24);
           break;
