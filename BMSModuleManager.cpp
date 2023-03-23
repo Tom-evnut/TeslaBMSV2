@@ -328,7 +328,18 @@ void BMSModuleManager::getAllVoltTemp()
       modules[x].stopBalance();
     }
   }
-  delay(200);
+
+  if (numFoundModules < 8)
+  {
+    delay(200);
+  }
+  else
+  {
+    delay(50);
+  }
+  /*
+    delay(200);
+  */
   for (int x = 1; x <= MAX_MODULE_ADDR; x++)
   {
     if (modules[x].isExisting())

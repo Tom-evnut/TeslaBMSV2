@@ -56,4 +56,5 @@ class BMSModule
     int sensor;
     uint8_t moduleAddress;     //1 to 0x3E
     int scells;
+    int smiss;
 };
