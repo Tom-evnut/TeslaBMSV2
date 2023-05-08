@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 221310; //Year Month Day
+int firmver = 230508; //Year Month Day
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -775,7 +775,7 @@ void loop()
               Pretimer = millis();
             }
           }
-          if (digitalRead(IN1) == HIGH) //detect Key ON
+          if (digitalRead(IN1) == HIGH && bms.getLowCellVolt() > settings.DischVsetpoint) //detect Key ON
           {
             bmsstatus = Precharge;
             Pretimer = millis();
@@ -1607,7 +1607,7 @@ void Prechargecon()
       {
         bmsstatus = Drive;
       }
-      else
+       else
       {
         if (digitalRead(IN3) == HIGH)
         {
