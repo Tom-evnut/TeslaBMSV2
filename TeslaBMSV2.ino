@@ -863,10 +863,11 @@ void loop()
                       bmsstatus = Charge;
                     }
           */
-          if (bms.getLowCellVolt() > settings.UnderVSetpoint && bms.getHighCellVolt() < settings.OverVSetpoint)
-          {
-            bmsstatus = Ready;
-          }
+            if (bms.getLowCellVolt() >= settings.UnderVSetpoint && bms.getHighCellVolt() <= settings.OverVSetpoint && digitalRead(IN1) == LOW)
+            {
+              bmsstatus = Ready;
+            }
+            
           break;
       }
     }
@@ -910,7 +911,7 @@ void loop()
     {
       if (bms.getLowCellVolt() < settings.UnderVSetpoint)
       {
-        if (UnderTimer > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
+        if (UnderTimer < millis()) //check is last time not undervoltage is longer thatn UnderDur ago
         {
           bmsstatus = Error;
         }
@@ -924,9 +925,10 @@ void loop()
       {
         bmsstatus = Error;
       }
+
       if (bms.getHighCellVolt() > settings.OverVSetpoint)
       {
-        if (OverTime > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
+        if (OverTime < millis()) //check is last time not undervoltage is longer thatn UnderDur ago
         {
           bmsstatus = Error;
         }
