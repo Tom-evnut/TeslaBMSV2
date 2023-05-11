@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 230508; //Year Month Day
+int firmver = 230511; //Year Month Day
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -160,7 +160,7 @@ int SOC = 100; //State of Charge
 int SOCset = 0;
 int SOCtest = 0;
 int SOCmem = 0;
-
+int SOCreset = 0;
 
 ///charger variables
 int maxac1 = 16; //Shore power 16A per charger
@@ -1488,81 +1488,74 @@ void getcurrent()
   */
 }
 
-void updateSOC()
-{
-  if (SOCset == 0 && SOCmem == 0)
-  {
-    if (millis() > 4000 && renum == 0)
-    {
-      bms.renumberBoardIDs();
-      renum = 1;
-    }
-    if (millis() > 4500)
-    {
-      bms.setSensors(settings.IgnoreTemp, settings.IgnoreVolt);
-    }
-    if (millis() > 5000)
-    {
-      SERIALCONSOLE.println(" HERE ");
+
+void updateSOC() {
+   if (SOCreset == 1) {
+    SOC = map(uint16_t(bms.getLowCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
+    ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778;
+    SOCreset = 0;
+  }
+
+  if (SOCset == 0 && SOCmem == 0) {
+    if (millis() > 5000) {
       SOC = map(uint16_t(bms.getLowCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
 
-      ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
+      ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778;
       SOCset = 1;
-      if (debug != 0)
-      {
+      if (debug != 0) {
         SERIALCONSOLE.println("  ");
         SERIALCONSOLE.println("//////////////////////////////////////// SOC SET ////////////////////////////////////////");
       }
+      if (settings.ESSmode == 1) {
+        bmsstatus = Ready;
+      }
     }
   }
-  /*
-    if (settings.cursens == 1)
-    {
-    SOC = map(uint16_t(bms.getAvgCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
 
-    ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
+  if (SOCset == 0 && SOCmem == 1) {
+    ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778;
+    if (millis() > 5000) {
+      SOCset = 1;
+      if (debug != 0) {
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.println("//////////////////////////////////////// SOC SET ////////////////////////////////////////");
+      }
+      if (settings.ESSmode == 1) {
+        bmsstatus = Ready;
+      }
     }
-  */
-  if (settings.voltsoc == 1)
-  {
-    SOC = map(uint16_t(bms.getLowCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
-
-    ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
   }
 
   SOC = ((ampsecond * 0.27777777777778) / (settings.CAP * settings.Pstrings * 1000)) * 100;
 
-  if (SOC >= 100)
-  {
-    ampsecond = (settings.CAP * settings.Pstrings * 1000) / 0.27777777777778 ; //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
+  if (settings.voltsoc == 1 || settings.cursens == 0) {
+    SOC = map(uint16_t(bms.getLowCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
+
+    ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778;
+  }
+
+  if (SOC >= 100) {
+    ampsecond = (settings.CAP * settings.Pstrings * 1000) / 0.27777777777778;  //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
     SOC = 100;
   }
 
 
-  if (SOC < 0)
-  {
-    SOC = 0; //reset SOC this way the can messages remain in range for other devices. Ampseconds will keep counting.
+  if (SOC < 0) {
+    SOC = 0;  //reset SOC this way the can messages remain in range for other devices. Ampseconds will keep counting.
   }
 
-  if (debug != 0)
-  {
-    if (settings.cursens == Analoguedual)
-    {
-      if (sensor == 1)
-      {
+  if (debug != 0) {
+    if (settings.cursens == Analoguedual) {
+      if (sensor == 1) {
         SERIALCONSOLE.print("Low Range ");
-      }
-      else
-      {
+      } else {
         SERIALCONSOLE.print("High Range");
       }
     }
-    if (settings.cursens == Analoguesing)
-    {
+    if (settings.cursens == Analoguesing) {
       SERIALCONSOLE.print("Analogue Single ");
     }
-    if (settings.cursens == Canbus)
-    {
+    if (settings.cursens == Canbus) {
       SERIALCONSOLE.print("CANbus ");
     }
     SERIALCONSOLE.print("  ");
@@ -1572,8 +1565,7 @@ void updateSOC()
     SERIALCONSOLE.print(SOC);
     SERIALCONSOLE.print("% SOC ");
     SERIALCONSOLE.print(ampsecond * 0.27777777777778, 2);
-    SERIALCONSOLE.println ("mAh");
-
+    SERIALCONSOLE.print("mAh");
   }
 }
 
@@ -2524,16 +2516,14 @@ void menu()
         incomingByte = 'b';
         break;
 
-      case 114: //r for reset
-        SOCset = 0;
+case 'r':  //r for reset
+        SOCreset = 1;
         SERIALCONSOLE.println("  ");
         SERIALCONSOLE.print(" mAh Reset ");
         SERIALCONSOLE.println("  ");
         menuload = 1;
         incomingByte = 'b';
         break;
-
-
 
 
       case '1': //1 Over Voltage Setpoint
