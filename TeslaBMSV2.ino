@@ -46,7 +46,7 @@ SerialConsole console;
 EEPROMSettings settings;
 
 /////Version Identifier/////////
-int firmver = 230511; //Year Month Day
+int firmver = 230719; //Year Month Day
 
 //Curent filter//
 float filterFrequency = 5.0 ;
@@ -425,6 +425,11 @@ void setup()
       //SOCmem = 1;
     }
   }
+
+
+  SERIALCONSOLE.println("Recovery SOC: ");
+  SERIALCONSOLE.print(SOC);
+
   ////Calculate fixed numbers
   pwmcurmin = (pwmcurmid / 50 * pwmcurmax * -1);
   ////
@@ -440,7 +445,10 @@ void setup()
 
   PMC_LVDSC1 =  PMC_LVDSC1_LVDV(1);  // enable hi v
   PMC_LVDSC2 = PMC_LVDSC2_LVWIE | PMC_LVDSC2_LVWV(3); // 2.92-3.08v
+    attachInterruptVector(IRQ_LOW_VOLTAGE, low_voltage_isr);
   NVIC_ENABLE_IRQ(IRQ_LOW_VOLTAGE);
+
+    bmsstatus = Boot;
 }
 
 void loop()
